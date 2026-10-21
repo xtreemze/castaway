@@ -1,7 +1,7 @@
 // Deterministic pose layer for wordless physical comedy.
 // Outputs additive offsets; the existing body rig remains the authority.
 const ease=t=>{const x=Math.max(0,Math.min(1,t));return x*x*(3-2*x)};
-const pulse=(t,a,b)=>ease((t-a)/1.2)*(1-ease((t-b)/1.4));
+const pulse=(t,a,b)=>ease((t-a)/1.2)*(1-ease((t-b)/0.8));
 export function comedyPose(id,t){
   const prep=pulse(t,6,19),payoff=pulse(t,19,24),aftermath=pulse(t,24,29);
   switch(id){
