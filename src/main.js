@@ -51,7 +51,7 @@ function reconcileScenery(){
  permanentCrab.visible=p.crab&&originalEvent?.id!=='crab-handshake'&&originalEvent?.id!=='return-to-sender';
  permanentBottle.visible=p.bottle&&originalEvent?.id!=='return-to-sender';
  storedCoconuts.forEach((o,i)=>o.visible=i<p.coconuts);
- if(!originalEvent){const kind=stories[index]?.[2];raft.visible=p.raftLogs>0||kind==='build'||kind==='raft'||kind==='depart';raft.children.forEach((log,i)=>log.visible=i<Math.max(p.raftLogs,kind==='raft'?p.raftLogs+1:0));if(kind!=='depart'){raft.position.set(1.6,.05,1.1);raft.rotation.z=0;raft.scale.setScalar(1)}}
+ if(!originalEvent){const kind=stories[index]?.[2];raft.visible=p.raftLogs>0||kind==='build'||kind==='raft'||kind==='depart';raft.children.forEach((log,i)=>log.visible=i<Math.max(p.raftLogs,kind==='raft'?p.raftLogs+1:0));if(kind!=='depart'){raft.position.set(1.6,.05,1.1);raft.rotation.z=0;if(kind!=='raft'&&kind!=='build')raft.scale.setScalar(1)}}
 }
 function paintOriginalEvent(time){
   comedyProps.visible=Boolean(originalEvent);
