@@ -18,14 +18,5 @@ jobs:
           node --check story-catalog.mjs
           node --check story-director.mjs
           node --test story-director.test.mjs
-      - name: Validate embedded browser module syntax
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-          document = Path('index.html').read_text()
-          matches = re.findall(r'<script\s+type="module"\s*>(.*?)</script>', document, re.S)
-          assert len(matches) == 1, f'Expected one module script; found {len(matches)}'
-          Path('/tmp/castaway-inline.mjs').write_text(matches[0])
-          PY
-          node --check /tmp/castaway-inline.mjs
+      - name: Validate Vite runtime syntax
+        run: node --check src/main.js
