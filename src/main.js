@@ -44,14 +44,14 @@ const pierSign=obj(new T.BoxGeometry(.55,.28,.045),wood,5.35,.48,.9,permanent);
 const pierPost=obj(new T.CylinderGeometry(.035,.035,.65,6),bark,5.35,.14,.9,permanent);
 function reconcileScenery(){
  const p=persistentProps(world);
- permanentSundial.visible=p.sundial;permanentPebbles.forEach(o=>o.visible=p.sundial);
- permanentCrab.visible=p.crab;permanentGlove.visible=p.crabGlove;
+ permanentSundial.visible=p.sundial&&originalEvent?.id!=='sundial';permanentPebbles.forEach(o=>o.visible=p.sundial&&originalEvent?.id!=='sundial');
+ permanentCrab.visible=p.crab;permanentGlove.visible=p.crabGlove&&originalEvent?.id!=='crab-handshake';
  permanentBottle.visible=p.bottle;
  pierSign.visible=pierPost.visible=p.pierSign;
  permanentCrab.visible=p.crab&&originalEvent?.id!=='crab-handshake'&&originalEvent?.id!=='return-to-sender';
  permanentBottle.visible=p.bottle&&originalEvent?.id!=='return-to-sender';
  storedCoconuts.forEach((o,i)=>o.visible=i<p.coconuts);
- if(!originalEvent){raft.visible=p.raftLogs>0;raft.children.forEach((log,i)=>log.visible=i<p.raftLogs)}
+ if(!originalEvent){const kind=stories[index]?.[2];raft.visible=p.raftLogs>0||kind==='build'||kind==='raft'||kind==='depart';raft.children.forEach((log,i)=>log.visible=i<Math.max(p.raftLogs,kind==='raft'?p.raftLogs+1:0));if(kind!=='depart'){raft.position.set(1.6,.05,1.1);raft.rotation.z=0;raft.scale.setScalar(1)}}
 }
 function paintOriginalEvent(time){
   comedyProps.visible=Boolean(originalEvent);
