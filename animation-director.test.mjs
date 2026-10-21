@@ -1,0 +1,3 @@
+import assert from 'node:assert/strict';import{samplePose,beatAt,TRACKS}from'./animation-director.mjs';
+for(const[k,track]of Object.entries(TRACKS)){assert.equal(track.length,6,k);assert.deepEqual(samplePose(k,0),[0,0,0,0]);assert.deepEqual(samplePose(k,30),[0,0,0,0]);for(let t=0;t<=30;t+=.25)assert.ok(samplePose(k,t).every(Number.isFinite),k+' '+t)}
+assert.equal(beatAt(0),0);assert.equal(beatAt(5),1);assert.equal(beatAt(12),2);assert.equal(beatAt(20),3);assert.equal(beatAt(25),4);assert.deepEqual(samplePose('unknown',10),[0,0,0,0]);console.log('Animation director tests passed');
