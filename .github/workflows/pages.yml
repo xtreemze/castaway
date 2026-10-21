@@ -18,6 +18,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Check browser module syntax
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          page = Path('index.html').read_text()
+          scripts = re.findall(r'<script type="module">([\\s\\S]*?)</script>', page)
+          if len(scripts) != 1:
+              raise SystemExit('Expected exactly one browser module')
+          Path('/tmp/castaway-check.mjs').write_text(scripts[0])
+          PY
+          node --check /tmp/castaway-check.mjs
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
