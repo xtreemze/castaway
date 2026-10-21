@@ -31,7 +31,7 @@ jobs:
         run: |
           npm install --no-save playwright
           npx playwright install --with-deps chromium
-          python3 -m http.server 4173 --bind 127.0.0.1 &
+          python3 -m http.server 4173 --bind 127.0.0.1 --directory dist &
           node browser-smoke.mjs
       - uses: actions/configure-pages@v5
         if: github.event_name != 'pull_request'
