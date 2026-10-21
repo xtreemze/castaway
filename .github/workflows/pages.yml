@@ -24,7 +24,7 @@ jobs:
           from pathlib import Path
           import re
           page = Path('index.html').read_text()
-          scripts = re.findall(r'<script type="module">([\\s\\S]*?)</script>', page)
+          scripts = re.findall(r'<script type="module">(.*?)</script>', page, re.S)
           if len(scripts) != 1:
               raise SystemExit('Expected exactly one browser module')
           Path('/tmp/castaway-check.mjs').write_text(scripts[0])
