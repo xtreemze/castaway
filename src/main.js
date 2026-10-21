@@ -1,5 +1,5 @@
 
-import * as T from 'three';import{newStoryState,chooseStoryEvent,completeStoryEvent,beatForTime}from'../story-director.mjs';import{samplePose,beatAt}from'../animation-director.mjs';import{positionAt,raftVisibility,plankCount}from'../scene-choreography.mjs';import{propPose,applyInventory}from'../prop-choreography.mjs';import{secondaryMotion}from'../secondary-motion.mjs';import{expressionAt}from'../character-expression.mjs';import{handContact}from'../hand-rig.mjs';import{groundContact}from'../ground-contact.mjs';import{OrbitControls}from'three/addons/controls/OrbitControls.js';
+import * as T from 'three';import{comedyPose,comedySound}from'../comedy-acting.mjs';import{newStoryState,chooseStoryEvent,completeStoryEvent,beatForTime}from'../story-director.mjs';import{samplePose,beatAt}from'../animation-director.mjs';import{positionAt,raftVisibility,plankCount}from'../scene-choreography.mjs';import{propPose,applyInventory}from'../prop-choreography.mjs';import{secondaryMotion}from'../secondary-motion.mjs';import{expressionAt}from'../character-expression.mjs';import{handContact}from'../hand-rig.mjs';import{groundContact}from'../ground-contact.mjs';import{OrbitControls}from'three/addons/controls/OrbitControls.js';
 const scene=new T.Scene();scene.background=new T.Color('#94cfdf');scene.fog=new T.Fog('#94cfdf',26,95);const camera=new T.PerspectiveCamera(40,innerWidth/innerHeight,.1,180);camera.position.set(12,9,17);
 const renderer=new T.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFSoftShadowMap;renderer.outputColorSpace=T.SRGBColorSpace;document.body.prepend(renderer.domElement);
 const orbit=new OrbitControls(camera,renderer.domElement);orbit.enableDamping=true;orbit.minDistance=9;orbit.maxDistance=37;orbit.maxPolarAngle=1.48;orbit.target.set(0,1,0);
@@ -25,7 +25,7 @@ try{
   const value=JSON.parse(localStorage.getItem('castaway-original-story-v1')||'null');
   storyState=value&&Number.isInteger(value.seed)&&Array.isArray(value.flags)&&Array.isArray(value.played)&&Number.isInteger(value.episode)?value:newStoryState();
 }catch{storyState=newStoryState()}
-let originalEvent=null;
+let originalEvent=null,previousOriginalBeat=-1;
 const comedyProps=new T.Group();comedyProps.visible=false;scene.add(comedyProps);
 const shade=obj(new T.ConeGeometry(.78,.1,5),leaf,0,2.45,0,comedyProps);
 const stick=obj(new T.CylinderGeometry(.035,.045,.8,6),bark,0,.5,0,comedyProps);
@@ -51,17 +51,18 @@ function paintOriginalEvent(time){
   crab.position.z=.7+.025*Math.sin(time*7);
   glove.position.set(beat<3?actor.position.x+.4:crab.position.x,beat<3?1.18:crab.position.y+.22,beat<3?actor.position.z+.2:crab.position.z);
   bottle.position.set(beat<3?actor.position.x+.6:1.4+Math.sin(time*1.5)*.3,beat<3?.25:-.3,1.2);
-  if(id==='portable-shade'){arms[1].rotation.x=-1.4;head.rotation.z=beat>=3?.38*impact*(1-recovery):0;}
-  if(id==='crab-handshake'){arms[1].rotation.x=-1.3;arms[1].rotation.z=-.8;head.rotation.x=beat>=3?.25:0;}
-  if(id==='sundial'){torso.rotation.x=beat===1?.35:0;head.rotation.x=beat>=3?.35:0;crown.rotation.z+=beat>=3?.22*impact:0;}
-  if(id==='return-to-sender'){arms[1].rotation.x=beat<3?-1.1:0;head.rotation.z=beat>=3?.2:0;}
-  if(id==='pier-to-nowhere'){actor.position.x=1.4;actor.rotation.y=.7;head.rotation.x=beat>=3?.3:0;foam.forEach(o=>o.position.y=-.45-(beat>=3?.10*impact:0));}
+  if(id==='portable-shade'){shade.position.y=2.5+.08*Math.sin(time*1.6);shade.rotation.y=beat>=3?Math.PI*impact:0;}
+  if(id==='crab-handshake'){crab.rotation.y=beat>=3?.5*impact:0;glove.rotation.z=beat>=3?.28*Math.sin(time*8):0;}
+  if(id==='sundial'){crown.rotation.z+=beat>=3?.22*impact:0;}
+  if(id==='return-to-sender'){bottle.rotation.z=beat>=3?.18*Math.sin(time*5):0;}
+  if(id==='pier-to-nowhere'){actor.position.x=1.4;actor.rotation.y=.7;foam.forEach((o,i)=>o.position.y=-.45+i*.015-(beat>=3?.10*impact:0));}
+  const acting=comedyPose(id,time);torso.rotation.x+=acting.lean;head.rotation.z+=acting.headRoll;head.rotation.x+=acting.lookUp;arms[1].rotation.x+=acting.arm;actor.rotation.y+=acting.bodyTurn;
 }
 function startOriginalEvent(){
   const selected=chooseStoryEvent(storyState);
   if(!selected)return false;
   originalEvent=selected;
-  seconds=0;previousBeat=-1;
+  seconds=0;previousBeat=-1;previousOriginalBeat=-1;
   $('#name').textContent='Day '+narrative.day+' · '+selected.title;
   $('#desc').textContent=selected.phases[0];
   $('#sub').textContent=selected.accessibilitySummary;
@@ -102,6 +103,6 @@ if(k==='build'||k==='raft'){torso.rotation.x=.25+.18*Math.sin(t*2);arms.forEach(
 if(k==='dance'){arms[0].rotation.z=-2.5;arms[1].rotation.z=2.5;legs.forEach((l,i)=>l.rotation.x=Math.sin(t*7+i*Math.PI)*.4*energy);actor.position.y=.15+Math.abs(Math.sin(t*5))*.1}
 if(k==='sleep'){actor.rotation.z=-1.4*smooth(seconds/6);actor.position.y=.22}
 if(k==='depart'){raft.position.x=1.6+.5*Math.sin(phase*Math.PI);raft.position.y=.05+.04*Math.sin(t*2)}
-if(k==='alarm'){arms[0].rotation.z=-1.8;arms[1].rotation.z=1.8;head.rotation.z=.18*Math.sin(t*4)*energy}stagedPose(k,seconds);const expression=expressionAt(k,seconds);const contact=handContact(k,seconds,[actor.position.x,actor.position.y,actor.position.z]);hands.forEach((hand,i)=>{hand.rotation.x=(i===contact.hand?-1:1)*contact.closure*.8;hand.children.forEach(child=>{if(child.userData.finger)child.rotation.x=contact.closure*.95})});eyes.forEach((eye,i)=>{eye.scale.y=Math.max(.09,1-expression.blink*.92);pupils[i].scale.y=eye.scale.y;pupils[i].position.x=(i===0?-.13:.13)+expression.gazeX*.025;pupils[i].position.y=.04+expression.gazeY*.03;brows[i].position.y=.145+expression.shock*.085-expression.focus*.025;brows[i].rotation.z=(i===0?-1:1)*(expression.shock*.36-expression.focus*.2)});head.rotation.x-=expression.shock*.18;legs[0].rotation.x+=secondary.leftLeg;legs[1].rotation.x+=secondary.rightLeg;arms[0].rotation.x+=secondary.leftArm;arms[1].rotation.x+=secondary.rightArm;torso.rotation.x+=secondary.lean;head.rotation.x+=secondary.lookUp;if(secondary.heading!==null&&k!=='run')actor.rotation.y=secondary.heading;if(beat!==previousBeat){if(!paused)foley(k,beat);previousBeat=beat}if(!originalEvent)playConsequences(k,seconds);else{carriedLog.visible=false;pole.visible=false;float.visible=false;coconut.visible=false;raft.visible=false;paintOriginalEvent(seconds);$('#desc').textContent=originalEvent.phases[beatForTime(seconds)];}
+if(k==='alarm'){arms[0].rotation.z=-1.8;arms[1].rotation.z=1.8;head.rotation.z=.18*Math.sin(t*4)*energy}stagedPose(k,seconds);const expression=expressionAt(k,seconds);const contact=handContact(k,seconds,[actor.position.x,actor.position.y,actor.position.z]);hands.forEach((hand,i)=>{hand.rotation.x=(i===contact.hand?-1:1)*contact.closure*.8;hand.children.forEach(child=>{if(child.userData.finger)child.rotation.x=contact.closure*.95})});eyes.forEach((eye,i)=>{eye.scale.y=Math.max(.09,1-expression.blink*.92);pupils[i].scale.y=eye.scale.y;pupils[i].position.x=(i===0?-.13:.13)+expression.gazeX*.025;pupils[i].position.y=.04+expression.gazeY*.03;brows[i].position.y=.145+expression.shock*.085-expression.focus*.025;brows[i].rotation.z=(i===0?-1:1)*(expression.shock*.36-expression.focus*.2)});head.rotation.x-=expression.shock*.18;legs[0].rotation.x+=secondary.leftLeg;legs[1].rotation.x+=secondary.rightLeg;arms[0].rotation.x+=secondary.leftArm;arms[1].rotation.x+=secondary.rightArm;torso.rotation.x+=secondary.lean;head.rotation.x+=secondary.lookUp;if(secondary.heading!==null&&k!=='run')actor.rotation.y=secondary.heading;if(beat!==previousBeat){if(!paused)foley(k,beat);previousBeat=beat}if(originalEvent&&beat!==previousOriginalBeat){const pitch=comedySound(originalEvent.id,beat);if(pitch&&ctx?.state==='running'&&!paused)cue(pitch);previousOriginalBeat=beat;}if(!originalEvent)playConsequences(k,seconds);else{carriedLog.visible=false;pole.visible=false;float.visible=false;coconut.visible=false;raft.visible=false;paintOriginalEvent(seconds);$('#desc').textContent=originalEvent.phases[beatForTime(seconds)];}
 if(ctx&&ctx.state==='running'&&!paused){noiseFilter.frequency.value=(dark?180:350)+90*Math.sin(t*.5);noiseGain.gain.value=.65+.2*Math.sin(t*.4);if(!dark&&t-bird>9){bird=t;cue(1200)}}
 $('#bar').style.width=(seconds/duration*100)+'%';orbit.update();renderer.render(scene,camera)}frame();addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});

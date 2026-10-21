@@ -17,6 +17,7 @@ jobs:
         run: |
           node --check story-catalog.mjs
           node --check story-director.mjs
-          node --test story-director.test.mjs
+          node --check comedy-acting.mjs
+          node --test story-director.test.mjs comedy-acting.test.mjs
       - name: Validate Vite runtime syntax
         run: node --check src/main.js
