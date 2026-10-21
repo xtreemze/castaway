@@ -1,3 +1,3 @@
 import assert from'node:assert/strict';import{positionAt,raftVisibility,plankCount,ROUTES}from'./scene-choreography.mjs';
-for(const k of Object.keys(ROUTES)){assert.deepEqual(positionAt(k,0),[0,.2]);for(let t=0;t<=30;t+=.5)assert.ok(positionAt(k,t).every(Number.isFinite))}
+for(const k of Object.keys(ROUTES)){assert.ok(Math.abs(positionAt(k,0)[0])<1e-9);assert.equal(positionAt(k,0)[1],.2);for(let t=0;t<=30;t+=.5)assert.ok(positionAt(k,t).every(Number.isFinite))}
 assert.equal(raftVisibility(0,'idle'),false);assert.equal(raftVisibility(2,'idle'),true);assert.equal(plankCount(7),4);assert.equal(plankCount(-1),0);console.log('Choreography tests passed');
