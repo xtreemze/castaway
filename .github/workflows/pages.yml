@@ -1,5 +1,6 @@
-name: Deploy Castaway Island
+name: Castaway CI and Pages
 on:
+  pull_request:
   push:
     branches: [main]
   workflow_dispatch:
@@ -8,31 +9,34 @@ permissions:
   pages: write
   id-token: write
 concurrency:
-  group: pages
+  group: pages-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Check browser module syntax
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-          page = Path('index.html').read_text()
-          scripts = re.findall(r'<script type="module">(.*?)</script>', page, re.S)
-          if len(scripts) != 1:
-              raise SystemExit('Expected exactly one browser module')
-          Path('/tmp/castaway-check.mjs').write_text(scripts[0])
-          PY
-          node --check /tmp/castaway-check.mjs
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/setup-node@v4
         with:
-          path: .
+          node-version: '24'
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Check JavaScript syntax
+        run: node --check src/main.js
+      - name: Build with Vite+
+        run: npx vp build
+      - name: Upload site artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - id: deployment
         uses: actions/deploy-pages@v4
