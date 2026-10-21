@@ -27,6 +27,12 @@ jobs:
         run: npx vp test
       - name: Vite+ production build
         run: npx vp build
+      - name: Browser render smoke test
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+          python3 -m http.server 4173 --bind 127.0.0.1 &
+          node browser-smoke.mjs
       - uses: actions/configure-pages@v5
         if: github.event_name != 'pull_request'
       - uses: actions/upload-pages-artifact@v3
