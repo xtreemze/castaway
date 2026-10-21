@@ -23,6 +23,8 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Check JavaScript syntax
         run: node --check src/main.js
+      - name: Test with Vite+
+        run: npx vp test
       - name: Build with Vite+
         run: npx vp build
       - name: Upload site artifact
