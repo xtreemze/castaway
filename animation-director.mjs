@@ -11,4 +11,4 @@ export const TRACKS={
 };
 const ease=t=>{const x=Math.max(0,Math.min(1,t));return x*x*(3-2*x)};
 export function samplePose(kind,time){const track=TRACKS[kind];if(!track)return [0,0,0,0];const t=Math.max(0,Math.min(30,time));for(let i=1;i<track.length;i++){const b=track[i];if(t<=b[0]){const a=track[i-1],f=ease((t-a[0])/(b[0]-a[0]));return a.slice(1).map((v,j)=>v+(b[j+1]-v)*f)}}return track.at(-1).slice(1)}
-export function beatAt(time){return Math.max(0,Math.min(4,BEATS.findIndex((end,i)=>i>0&&time<end)-1))}
+export function beatAt(time){return Math.max(0,Math.min(4,(time>=30?5:BEATS.findIndex((end,i)=>i>0&&time<end))-1))}
