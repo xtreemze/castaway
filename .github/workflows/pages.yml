@@ -33,6 +33,14 @@ jobs:
           npx playwright install --with-deps chromium
           python3 -m http.server 4173 --bind 127.0.0.1 --directory dist &
           node browser-smoke.mjs
+      - name: Retain desktop and mobile screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: castaway-visual-smoke
+          path: screenshots/
+          if-no-files-found: warn
+          retention-days: 14
       - uses: actions/configure-pages@v5
         if: github.event_name != 'pull_request'
       - uses: actions/upload-pages-artifact@v3
