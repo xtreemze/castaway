@@ -30,7 +30,7 @@ jobs:
           Path('/tmp/castaway-check.mjs').write_text(scripts[0])
           PY
           node --check /tmp/castaway-check.mjs
-          node --test animation-director.test.mjs scene-choreography.test.mjs
+          node --test animation-director.test.mjs scene-choreography.test.mjs prop-choreography.test.mjs
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
