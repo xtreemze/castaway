@@ -1,0 +1,21 @@
+{
+  "name": "castaway",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vp dev",
+    "build": "vp build",
+    "check": "vp check",
+    "test": "vp test --run",
+    "preview": "vp preview"
+  },
+  "dependencies": {
+    "three": "0.186.1"
+  },
+  "devDependencies": {
+    "vite-plus": "1.3.0",
+    "typescript": "~7.0.2",
+    "@types/three": "^0.186.0"
+  }
+}
