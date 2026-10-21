@@ -1,15 +1,23 @@
 # Castaway Island
 
-A small interactive 3D ocean-island diorama with an autonomous castaway, comic vignettes every 30 seconds, synthesized ambience, and orbit controls.
+An original browser-native animated island diorama: a stranded castaway, 30-second visual comedy, code-generated ocean and props, procedural sound, and orbit controls.
 
-[Live site](https://xtreemze.github.io/castaway/)
+**Live:** https://xtreemze.github.io/castaway/
 
-## Usage
+## Stack
 
-Open the GitHub Pages site or serve `index.html` locally using a static HTTP server. Sound is opt-in because browsers restrict audio autoplay. Uses Three.js via jsDelivr.
+Vite+ 1.3, Three.js, native Web Audio, GitHub Actions, and GitHub Pages. The original diorama is preserved, with its browser module moved to `src/main.js` and Three.js imported from the npm dependency rather than a CDN.
 
-## Controls
+## Workflow
 
-Drag to orbit, scroll or pinch to zoom, use **Next scene** for the next vignette, **Pause** to suspend story time, and **Night** to change the lighting.
+All changes can be authored through GitHub issues, branches, and pull requests. CI executes `node --check src/main.js` and `vp build` using hosted GitHub runners. The `main` branch deploys its compiled `dist/` artifacts to GitHub Pages. In repository Settings → Pages choose **GitHub Actions** as the source.
 
-This is an original interpretation inspired by the visual-comedy tradition of early screensavers; artwork and geometry are original.
+## Interactions
+
+Drag to orbit, scroll or pinch to zoom, **Next scene** to select a vignette, **Pause** to suspend the narrative, **Night** to change lighting, and **Enable sound** to activate procedural ambience after a user gesture.
+
+## Roadmap
+
+Extract the narrative into typed, seeded, replayable event modules; make procedural character poses declarative; add screenshot-driven Playwright tests and performance reporting. Preserve the original staged visual-comedy tone.
+
+All art and geometry are original interpretations inspired by classic screensaver physical comedy.
