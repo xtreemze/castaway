@@ -18,6 +18,7 @@ jobs:
           node --check story-catalog.mjs
           node --check story-director.mjs
           node --check comedy-acting.mjs
-          node --test story-director.test.mjs comedy-acting.test.mjs
+          node --check crab-handshake.mjs
+          node --test story-director.test.mjs comedy-acting.test.mjs crab-handshake.test.mjs
       - name: Validate Vite runtime syntax
         run: node --check src/main.js
