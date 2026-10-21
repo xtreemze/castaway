@@ -1,0 +1,22 @@
+name: Validate Castaway story
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  story:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate modules and test narrative director
+        run: |
+          node --check story-catalog.mjs
+          node --check story-director.mjs
+          node --test story-director.test.mjs
+      - name: Validate Vite runtime syntax
+        run: node --check src/main.js

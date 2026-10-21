@@ -3,6 +3,11 @@ import assert from 'node:assert/strict';
 const browser=await chromium.launch({headless:true,args:['--use-gl=angle','--use-angle=swiftshader','--enable-webgl','--no-sandbox']});
 const page=await browser.newPage({viewport:{width:1280,height:720}});
 const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
+// CI serves the dist directory at / while the published bundle uses /castaway/.
+// Map asset requests to the local dist root without changing production URLs.
+await page.route('**/castaway/assets/**', route =>
+  route.continue({url:route.request().url().replace('/castaway/assets/','/assets/')}
+));
 await page.goto('http://127.0.0.1:4173/',{waitUntil:'load'});
 await page.waitForSelector('canvas',{timeout:20000});
 await page.waitForTimeout(3500);
