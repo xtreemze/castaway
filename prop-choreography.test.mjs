@@ -1,0 +1,4 @@
+import assert from'node:assert/strict';import{propPose,applyInventory}from'./prop-choreography.mjs';
+assert.equal(propPose('coconut',13,-1,.2).mode,'carried');assert.equal(propPose('coconut',21,-1,.2).mode,'bounce');assert.equal(propPose('coconut',27,-1,.2).mode,'stored');assert.equal(propPose('build',15,1,.2).mode,'carried');
+for(let t=0;t<=30;t+=.25){for(const kind of ['coconut','build','raft','fish']){const p=propPose(kind,t,1,.2);assert.ok([p.x,p.y,p.z].every(Number.isFinite))}}
+let n={coconuts:7,raftProgress:3};n=applyInventory(n,'coconut');assert.equal(n.coconuts,8);n=applyInventory(n,'build');assert.equal(n.raftProgress,4);n=applyInventory(n,'depart');assert.equal(n.raftProgress,0);console.log('Prop choreography tests passed');
