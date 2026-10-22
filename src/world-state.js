@@ -3,7 +3,7 @@ import {advanceChapter} from './chapters.js';
 // Legacy keys are read only for migration; all subsequent writes use one snapshot.
 export const STORY_KEY = 'castaway-world-v2';
 export const defaultNarrative = () => ({day:1,hope:70,failures:0,coconuts:0,raftProgress:0,seen:{},lastKinds:[],lastEvent:0,seed:0xCA57A,episode:0});
-export const defaultOriginal = () => ({seed:0xC457A,played:[],flags:[],lastMechanism:null,episode:0});
+export const defaultOriginal = () => ({seed:0xC457A,played:[],counts:{},flags:[],lastMechanism:null,episode:0});
 const object = value => value && typeof value === 'object' && !Array.isArray(value) ? value : {};
 const integer = (value,fallback,min=0) => Number.isSafeInteger(value)&&value>=min ? value : fallback;
 export function normalizeWorld(value, legacyNarrative, legacyOriginal) {
@@ -16,6 +16,10 @@ export function normalizeWorld(value, legacyNarrative, legacyOriginal) {
   const o={...defaultOriginal(),...object(snapshot.original ?? original)};
   o.episode=integer(o.episode,0);o.seed=integer(o.seed,0xC457A);
   o.played=Array.isArray(o.played)?o.played.slice(-40):[];
+  if(!snapshot.original?.counts&&!original.counts&&!o.counts?.['crab-handshake']){
+    // Legacy saves retain only the most recent 40 events; earlier counts cannot be recovered.
+    o.counts=Object.fromEntries([...new Set(o.played)].map(id=>[id,o.played.filter(v=>v===id).length]));
+  } else o.counts=Object.fromEntries(Object.entries(object(o.counts)).filter(([,v])=>Number.isSafeInteger(v)&&v>=0));
   o.flags=Array.isArray(o.flags)?[...new Set(o.flags)]:[];
   const current=object(snapshot.current);
   return {version:2,chapter:integer(snapshot.chapter,0),narrative:n,original:o,current:{
