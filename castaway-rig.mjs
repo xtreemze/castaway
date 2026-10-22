@@ -70,15 +70,13 @@ export function createCastawayRig({T,scene,obj,ball,rod,m,skin,hair,shirt,shorts
     const elbowLocal=rootSpace.worldToLocal(new T.Vector3(...solution.elbow));
     const shoulderLocal=rootSpace.worldToLocal(root.clone());
     const aim=elbowLocal.sub(shoulderLocal).normalize();
-    const authored=arm.quaternion.clone();
-    arm.quaternion.setFromUnitVectors(up,aim);
-    arm.quaternion.copy(authored).slerp(arm.quaternion.clone(),amount);
+    const shoulderGoal=new T.Quaternion().setFromUnitVectors(up,aim);
+    arm.quaternion.slerp(shoulderGoal,amount);
     arm.updateWorldMatrix(true,true);
     const wristLocal=arm.worldToLocal(new T.Vector3(...solution.wrist));
     const forearmAim=wristLocal.sub(elbow.position).normalize();
-    const bend=elbow.quaternion.clone();
-    elbow.quaternion.setFromUnitVectors(up,forearmAim);
-    elbow.quaternion.copy(bend).slerp(elbow.quaternion.clone(),amount);
+    const elbowGoal=new T.Quaternion().setFromUnitVectors(up,forearmAim);
+    elbow.quaternion.slerp(elbowGoal,amount);
     return solution;
   }
   function secondaryRigMotion(time,shock=0) {
