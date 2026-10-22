@@ -2,6 +2,7 @@ import { chromium } from 'playwright';
 import assert from 'node:assert/strict';
 import { mkdirSync } from 'node:fs';
 mkdirSync('screenshots',{recursive:true});
+mkdirSync('screenshots/episodes',{recursive:true});
 async function verifyWebGL(page,label){
  const result=await page.locator('canvas').evaluate(canvas=>{
   const gl=canvas.getContext('webgl2')||canvas.getContext('webgl');
@@ -10,6 +11,30 @@ async function verifyWebGL(page,label){
  assert.ok(result.width>0&&result.height>0,label+' canvas has no resolution');
  assert.ok(result.webgl&&!result.contextLost,label+' WebGL unavailable or context lost');
  console.log(label+' WebGL:',result.renderer,result.width+'x'+result.height);
+}
+
+const fixtures=[
+  ['portable-shade',10,'The Portable Shade'],
+  ['portable-shade',23,'The Portable Shade'],
+  ['crab-handshake',21,'Diplomatic Relations'],
+  ['sundial',21,'The Perfect Timepiece'],
+  ['return-to-sender',13,'Return to Sender'],
+  ['return-to-sender',24,'Return to Sender'],
+  ['pier-to-nowhere',18,'The Magnificent Pier'],
+  ['pier-to-nowhere',26,'The Magnificent Pier'],
+  ['fish',21,'Gone fishing'],
+];
+async function captureEpisodeFixtures(page,mode){
+  for(const [id,time,title] of fixtures){
+    await page.goto('http://127.0.0.1:4173/?event='+encodeURIComponent(id)+'&time='+time,
+      {waitUntil:'load'});
+    await page.waitForSelector('canvas',{timeout:20000});
+    await page.waitForTimeout(450);
+    assert.match(await page.locator('#name').innerText(),new RegExp(title));
+    assert.equal(await page.locator('#pause').innerText(),'Resume');
+    await verifyWebGL(page,mode+' '+id+' @ '+time);
+    await page.screenshot({path:'screenshots/episodes/'+mode+'-'+id+'-'+time+'s.png'});
+  }
 }
 const browser=await chromium.launch({headless:true,args:['--use-gl=angle','--use-angle=swiftshader','--enable-webgl','--no-sandbox']});
 const page=await browser.newPage({viewport:{width:1280,height:720}});
@@ -32,6 +57,7 @@ assert.equal(await page.locator('#pause').innerText(),'Resume');
 await page.locator('#night').click();
 assert.equal(await page.locator('#night').innerText(),'Day');
 await page.screenshot({path:'screenshots/desktop-1280x720.png',fullPage:true});
+await captureEpisodeFixtures(page,'desktop');
 const mobile=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:1,isMobile:true,hasTouch:true});
 mobile.on('pageerror',e=>errors.push('mobile: '+e.message));
 await mobile.route('**/castaway/assets/**',route=>route.continue({url:route.request().url().replace('/castaway/assets/','/assets/')}));
@@ -47,6 +73,7 @@ assert.equal(await mobile.locator('#pause').innerText(),'Resume');
 await mobile.locator('#night').click();
 assert.equal(await mobile.locator('#night').innerText(),'Day');
 await mobile.screenshot({path:'screenshots/mobile-390x844.png',fullPage:true});
+await captureEpisodeFixtures(mobile,'mobile');
 await mobile.close();
 assert.deepEqual(errors,[],errors.join('\n'));
 await browser.close();console.log('Browser smoke test passed');
