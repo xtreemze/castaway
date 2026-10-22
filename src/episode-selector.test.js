@@ -25,6 +25,11 @@ describe('unified episode selection',()=>{
   expect(selectEpisode(world,scenes,catalog,{family:'original',id:'meet-crab'}))
    .not.toEqual({family:'original',id:'meet-crab'});
  });
+ it('never repeats a committed milestone',()=>{
+  const world=normalizeWorld({original:{flags:['pier_inspected']}});
+  const catalog=[{id:'pier-to-nowhere',kind:'milestone',effects:['pier_inspected'],requires:[],mechanism:'anticlimax'}];
+  expect(selectEpisode(world,[],catalog)).toBeNull();
+ });
  it('supports eventual unlocked events',()=>{
   const world=normalizeWorld({narrative:{raftProgress:4},original:{flags:['crab_met']}});
   const ids=[...Array.from({length:12},(_,i)=>i.toString()),'meet-crab','return-bottle'];
