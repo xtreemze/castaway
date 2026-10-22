@@ -5,7 +5,7 @@ export const CHAPTERS=Object.freeze([
  {title:'Uninvited Company',ready:w=>(w.original.flags||[]).includes('crab_met')},
  {title:'Civilization in Miniature',ready:w=>(w.original.flags||[]).includes('sundial_built')},
  {title:'Messages to Nobody',ready:w=>(w.original.flags||[]).includes('bottle_sent')},
- {title:'The Great Construction',ready:w=>(w.narrative.raftProgress||0)>=2},
+ {title:'The Great Construction',ready:w=>Math.max(w.narrative.raftPeak||0,w.narrative.raftProgress||0)>=2},
  {title:'The Sea Has Opinions',ready:w=>(w.narrative.failures||0)>=1},
  {title:'An Unexpected Attachment',ready:w=>(w.original.episode||0)>=8},
  {title:'The Voyage',ready:w=>(w.narrative.failures||0)>=2},
