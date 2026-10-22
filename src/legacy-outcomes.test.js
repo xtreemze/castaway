@@ -18,9 +18,11 @@ describe('legacy outcomes are transactional',()=>{
  it('increments raft progress exactly once and resets on departure',()=>{
   const built=completeLegacyScene(active(1,{raftProgress:2}),1,scenes);
   expect(built.narrative.raftProgress).toBe(3);
+  expect(built.narrative.raftPeak).toBe(3);
   const departing=normalizeWorld({...built,current:{family:'legacy',id:'2',elapsed:30}});
   const finished=completeLegacyScene(departing,2,scenes);
   expect(finished.narrative.raftProgress).toBe(0);
+  expect(finished.narrative.raftPeak).toBe(3);
   expect(finished.narrative.failures).toBe(1);
   expect(completeLegacyScene(finished,2,scenes).narrative.failures).toBe(1);
  });
