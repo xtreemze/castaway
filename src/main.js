@@ -50,7 +50,7 @@ function paintOriginalEvent(time){
   if(id!=='crab-handshake'){crab.position.set(.8,.12,.7);glove.position.set(0,.2,0)}
   bottle.position.set(beat<3?actor.position.x+.6:1.4+Math.sin(time*1.5)*.3,beat<3?.25:-.3,1.2);
   if(id==='portable-shade'){shade.position.y=2.5+.08*Math.sin(time*1.6);shade.rotation.y=beat>=3?Math.PI*impact:0;}
-  if(id==='crab-handshake'){const b=crabBlocking(time);crab.position.set(b.crabX,.12,b.crabZ);crab.scale.setScalar(b.crabScale);glove.position.set(actor.position.x+b.gloveX,b.gloveY,actor.position.z+b.gloveZ);glove.rotation.z=b.gloveAngle;torso.rotation.x+=.42*b.handBend+.18*b.bow;arms[1].rotation.x-=1.2*b.handReach;head.rotation.x+=.22*b.recognition;head.rotation.z-=.2*b.recognition;}else{crab.scale.setScalar(1)}
+  if(id==='crab-handshake'){const b=crabBlocking(time);crab.position.set(b.crabX,.12,b.crabZ);crab.scale.setScalar(b.crabScale);glove.position.set(b.gloveX+actor.position.x*(1-b.contact),b.gloveY,b.gloveZ+actor.position.z*(1-b.contact));glove.rotation.z=b.gloveAngle;torso.rotation.x+=.42*b.handBend+.18*b.bow;arms[1].rotation.x-=1.2*b.handReach;head.rotation.x+=.22*b.recognition;head.rotation.z-=.2*b.recognition;}else{crab.scale.setScalar(1)}
   if(id==='sundial'){crown.rotation.z+=beat>=3?.22*impact:0;}
   if(id==='return-to-sender'){bottle.rotation.z=beat>=3?.18*Math.sin(time*5):0;}
   if(id==='pier-to-nowhere'){actor.position.x=1.4;actor.rotation.y=.7;foam.forEach((o,i)=>o.position.y=-.45+i*.015-(beat>=3?.10*impact:0));}
