@@ -43,7 +43,7 @@ export function sampleOriginalPropStage(eventId,seconds,root=[0,0,.2]) {
       mix(y+1.42,y+2.29,lift)-gust*.2-recovery*.5,
       z+.18-gust*.68
     ],[gust*.26,gust*Math.PI,-gust*.5],'hat');
-    if(t<12)result.shade.owner='wrist-right';
+    if(t<9.8)result.shade.owner='wrist-right';
     if(t>=20)result.shade.owner='wind';
   }
   if(eventId==='sundial') {
