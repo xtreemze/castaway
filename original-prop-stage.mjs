@@ -62,7 +62,7 @@ export function sampleOriginalPropStage(eventId,seconds,root=[0,0,.2]) {
     else if(t<28)bottlePosition=blend(afloat,home,ease((t-23)/5));
     else bottlePosition=home;
     const bottleOwner=t<15?'wrist-right':t<23?'water':t<28?'crab':'ground';
-    const bob=bottleOwner==='water'?.035*Math.sin(t*4):0;
+    const bob=t>=15&&t<23?ease((t-15)/.7)*(1-ease((t-22)/.8))*.035*Math.sin(t*4):0;
     bottlePosition=[bottlePosition[0],bottlePosition[1]+bob,bottlePosition[2]];
     result.bottle=pose(true,bottlePosition,[0,0,t>=19?.12*Math.sin(t*2):0],bottleOwner);
     result.paper=pose(t>=6&&t<14,
