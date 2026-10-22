@@ -1,5 +1,5 @@
 
-import * as T from 'three';import{createCastawayRig}from'../castaway-rig.mjs';import{createWorld,updateShorelineFoam}from'../world-geometry.mjs';import{heightAt,waterHeightAt}from'../world-terrain.mjs';import{comedyPose,comedySound}from'../comedy-acting.mjs';import{newStoryState,chooseStoryEvent,completeStoryEvent,beatForTime}from'../story-director.mjs';import{samplePose,beatAt}from'../animation-director.mjs';import{positionAt,raftVisibility,plankCount}from'../scene-choreography.mjs';import{propPose,applyInventory}from'../prop-choreography.mjs';import{secondaryMotion}from'../secondary-motion.mjs';import{expressionAt}from'../character-expression.mjs';import{handContact}from'../hand-rig.mjs';import{groundContact}from'../ground-contact.mjs';import{OrbitControls}from'three/addons/controls/OrbitControls.js';
+import * as T from 'three';import{sampleOriginalPropStage}from'../original-prop-stage.mjs';import{createSupplementaryOriginalMeshes}from'../original-prop-meshes.mjs';import{createCastawayRig}from'../castaway-rig.mjs';import{createWorld,updateShorelineFoam}from'../world-geometry.mjs';import{heightAt,waterHeightAt}from'../world-terrain.mjs';import{comedyPose,comedySound}from'../comedy-acting.mjs';import{newStoryState,chooseStoryEvent,completeStoryEvent,beatForTime}from'../story-director.mjs';import{samplePose,beatAt}from'../animation-director.mjs';import{positionAt,raftVisibility,plankCount}from'../scene-choreography.mjs';import{propPose,applyInventory}from'../prop-choreography.mjs';import{secondaryMotion}from'../secondary-motion.mjs';import{expressionAt}from'../character-expression.mjs';import{handContact}from'../hand-rig.mjs';import{groundContact}from'../ground-contact.mjs';import{OrbitControls}from'three/addons/controls/OrbitControls.js';
 const scene=new T.Scene();scene.background=new T.Color('#94cfdf');scene.fog=new T.Fog('#94cfdf',26,95);const camera=new T.PerspectiveCamera(40,innerWidth/innerHeight,.1,180);camera.position.set(12,9,17);
 const renderer=new T.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFSoftShadowMap;renderer.outputColorSpace=T.SRGBColorSpace;document.body.prepend(renderer.domElement);
 const orbit=new OrbitControls(camera,renderer.domElement);orbit.enableDamping=true;orbit.minDistance=9;orbit.maxDistance=37;orbit.maxPolarAngle=1.48;orbit.target.set(0,1,0);
@@ -27,29 +27,40 @@ const crab=new T.Group();comedyProps.add(crab);crab.position.set(.8,.12,.7);
 ball(.18,m('#cf654a'),0,.06,0,crab);for(let side of [-1,1])for(let i=0;i<3;i++)rod([side*.1,.05,i*.09-.1],[side*.31,-.05,i*.14-.2],.025,m('#bf694b'),crab);
 const glove=obj(new T.BoxGeometry(.2,.055,.18),leaf2,0,.2,0,comedyProps);
 const bottle=obj(new T.CylinderGeometry(.085,.1,.37,7),new T.MeshStandardMaterial({color:'#8fc8b6',transparent:true,opacity:.8}),0,.2,0,comedyProps);
+const supplementalProps=createSupplementaryOriginalMeshes({T,obj,m,white,wood,bark,leaf,comedyProps});
 function paintOriginalEvent(time){
   comedyProps.visible=Boolean(originalEvent);
   if(!originalEvent)return;
-  const id=originalEvent.id,beat=beatForTime(time),impact=smooth((time-19)/4),recovery=smooth((time-24)/6);
-  shade.visible=id==='portable-shade';stick.visible=id==='sundial';
-  pebbleMeshes.forEach(p=>p.visible=id==='sundial');
+  const id=originalEvent.id,beat=beatForTime(time),impact=smooth((time-19)/4);
+  const staged=sampleOriginalPropStage(id,time,actor.position.toArray());
+  const meshes={shade,stick,bottle,...supplementalProps};
+  for(const [key,mesh] of Object.entries(meshes)){
+    const state=staged[key];
+    mesh.visible=state.visible;
+    if(state.visible){
+      mesh.position.set(...state.position);
+      mesh.rotation.set(...state.rotation);
+    }
+  }
+  pebbleMeshes.forEach((p,i)=>{
+    p.visible=staged.pebbles.visible;
+    if(p.visible) {
+      const [x,y,z]=staged.pebbles.position;
+      p.position.set(x+Math.cos(i*Math.PI/4)*.55,y,z+Math.sin(i*Math.PI/4)*.55);
+    }
+  });
+  // Keep the existing crab/glove choreography until PR #16 is reconciled.
   crab.visible=id==='crab-handshake'||id==='return-to-sender';
-  glove.visible=id==='crab-handshake';bottle.visible=id==='return-to-sender';
-  shade.position.set(actor.position.x,2.5,actor.position.z);
-  shade.rotation.y=beat>=3?Math.PI*impact:0;
-  shade.rotation.z=beat>=3?-.45*impact:0;
-  stick.position.set(.25,.4,.4);
-  pebbleMeshes.forEach((p,i)=>p.position.set(.25+Math.cos(i*Math.PI/4)*.55,.045,.4+Math.sin(i*Math.PI/4)*.55));
+  glove.visible=id==='crab-handshake';
   crab.position.x=.8+(beat>=3?Math.min(1,(time-19)/6)*2:0);
   crab.position.z=.7+.025*Math.sin(time*7);
   glove.position.set(beat<3?actor.position.x+.4:crab.position.x,beat<3?1.18:crab.position.y+.22,beat<3?actor.position.z+.2:crab.position.z);
-  bottle.position.set(beat<3?actor.position.x+.6:1.4+Math.sin(time*1.5)*.3,beat<3?.25:-.3,1.2);
-  if(id==='portable-shade'){shade.position.y=2.5+.08*Math.sin(time*1.6);shade.rotation.y=beat>=3?Math.PI*impact:0;}
   if(id==='crab-handshake'){crab.rotation.y=beat>=3?.5*impact:0;glove.rotation.z=beat>=3?.28*Math.sin(time*8):0;}
-  if(id==='sundial'){crown.rotation.z+=beat>=3?.22*impact:0;}
-  if(id==='return-to-sender'){bottle.rotation.z=beat>=3?.18*Math.sin(time*5):0;}
+  if(id==='sundial')crown.rotation.z+=beat>=3?.22*impact:0;
   if(id==='pier-to-nowhere'){actor.position.x=1.4;actor.rotation.y=.7;}
-  const acting=comedyPose(id,time);torso.rotation.x+=acting.lean;head.rotation.z+=acting.headRoll;head.rotation.x+=acting.lookUp;arms[1].rotation.x+=acting.arm;actor.rotation.y+=acting.bodyTurn;
+  const acting=comedyPose(id,time);
+  torso.rotation.x+=acting.lean;head.rotation.z+=acting.headRoll;
+  head.rotation.x+=acting.lookUp;arms[1].rotation.x+=acting.arm;actor.rotation.y+=acting.bodyTurn;
 }
 function startOriginalEvent(){
   const selected=chooseStoryEvent(storyState);
