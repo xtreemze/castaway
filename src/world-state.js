@@ -2,7 +2,7 @@ import {advanceChapter} from './chapters.js';
 // Versioned canonical persistence for both scene families.
 // Legacy keys are read only for migration; all subsequent writes use one snapshot.
 export const STORY_KEY = 'castaway-world-v2';
-export const defaultNarrative = () => ({day:1,hope:70,failures:0,coconuts:0,raftProgress:0,seen:{},lastKinds:[],lastEvent:0,seed:0xCA57A,episode:0});
+export const defaultNarrative = () => ({day:1,hope:70,failures:0,coconuts:0,raftProgress:0,raftPeak:0,seen:{},lastKinds:[],lastEvent:0,seed:0xCA57A,episode:0});
 export const defaultOriginal = () => ({seed:0xC457A,played:[],counts:{},flags:[],lastMechanism:null,episode:0});
 const object = value => value && typeof value === 'object' && !Array.isArray(value) ? value : {};
 const integer = (value,fallback,min=0) => Number.isSafeInteger(value)&&value>=min ? value : fallback;
@@ -11,7 +11,7 @@ export function normalizeWorld(value, legacyNarrative, legacyOriginal) {
   const legacy=object(legacyNarrative), original=object(legacyOriginal);
   const n={...defaultNarrative(),...object(snapshot.narrative ?? legacy)};
   n.day=integer(n.day,1,1);n.episode=integer(n.episode,0);n.seed=integer(n.seed,0xCA57A);
-  n.raftProgress=integer(n.raftProgress,0);n.coconuts=integer(n.coconuts,0);
+  n.raftProgress=integer(n.raftProgress,0);n.raftPeak=Math.max(n.raftProgress,integer(n.raftPeak,0));n.coconuts=integer(n.coconuts,0);
   n.seen=object(n.seen);n.lastKinds=Array.isArray(n.lastKinds)?n.lastKinds.slice(-3):[];
   const o={...defaultOriginal(),...object(snapshot.original ?? original)};
   o.episode=integer(o.episode,0);o.seed=integer(o.seed,0xC457A);
