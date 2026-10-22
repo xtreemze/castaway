@@ -56,9 +56,11 @@ export function createCastawayRig({T,scene,obj,ball,rod,m,skin,hair,shirt,shorts
   }
   const socket=(name)=>actor.getObjectByName(name);
   const up=new T.Vector3(0,-1,0);
-  function applyHandIK(kind,time,goal) {
-    if(!['coconut','build','raft'].includes(kind) || time<12 || time>=20) return null;
-    const amount=Math.min(1,(time-12)/.6,(20-time)/.6);
+  function applyHandIK(kind,time,goal,overrideWeight=null) {
+    const explicit=overrideWeight!==null;
+    if(!explicit&&(!['coconut','build','raft'].includes(kind)||time<12||time>=20))return null;
+    const amount=explicit?(Number.isFinite(overrideWeight)?Math.max(0,Math.min(1,overrideWeight)):0)
+      :Math.min(1,(time-12)/.6,(20-time)/.6);
     if(amount<=0)return null;
     const arm=arms[1],elbow=elbows[1];
     actor.updateWorldMatrix(true,true);

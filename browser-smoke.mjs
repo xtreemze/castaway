@@ -14,11 +14,14 @@ async function verifyWebGL(page,label){
 }
 
 const fixtures=[
+  ['portable-shade',8,'The Portable Shade'],
   ['portable-shade',10,'The Portable Shade'],
   ['portable-shade',23,'The Portable Shade'],
   ['crab-handshake',21,'Diplomatic Relations'],
   ['sundial',21,'The Perfect Timepiece'],
+  ['return-to-sender',11,'Return to Sender'],
   ['return-to-sender',13,'Return to Sender'],
+  ['return-to-sender',14,'Return to Sender'],
   ['return-to-sender',24,'Return to Sender'],
   ['pier-to-nowhere',18,'The Magnificent Pier'],
   ['pier-to-nowhere',26,'The Magnificent Pier'],
