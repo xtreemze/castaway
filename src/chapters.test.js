@@ -13,6 +13,10 @@ describe('story chapter continuity',()=>{
   expect(world.chapter).toBe(10);
   expect(advanceChapter(world).chapter).toBe(10);
  });
+ it('uses preserved historical raft construction after departure',()=>{
+  const w=normalizeWorld({chapter:4,narrative:{raftProgress:0,raftPeak:3}});
+  expect(advanceChapter(w).chapter).toBe(5);
+ });
  it('keeps prerequisite-locked chapters fixed',()=>{
   const world=normalizeWorld({chapter:2,narrative:{coconuts:5}});
   expect(advanceChapter(world).chapter).toBe(2);
