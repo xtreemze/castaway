@@ -1,5 +1,6 @@
 // Stage blocking is sampled from absolute vignette time, never integrated per frame.
-export const STATIONS={center:[0,.2],palm:[-1.65,-.5],quay:[2.25,.7],water:[1.3,1.45],workshop:[1.25,.35]};
+import {STAGE_ANCHORS} from './world-terrain.mjs';
+export const STATIONS=STAGE_ANCHORS;
 export const ROUTES={idle:'center',fish:'water',coconut:'palm',run:'center',wave:'quay',build:'workshop',raft:'workshop',dance:'center',sleep:'palm',depart:'water',alarm:'quay'};
 export function positionAt(kind,t){const dest=STATIONS[ROUTES[kind]||'center'];const f=Math.max(0,Math.min(1,(t-1)/7));const eased=f*f*(3-2*f);let x=dest[0]*eased,z=.2+(dest[1]-.2)*eased;if(kind==='run'&&t>9&&t<22){x=1.5*Math.sin((t-9)*.8);z=.2+1.2*Math.cos((t-9)*.8)}if(kind==='depart'&&t>14&&t<24)x+=Math.min((t-14)/10,1)*.65;return [x,z]}
 export function raftVisibility(progress,kind){return Math.max(0,Math.min(4,progress))>0||kind==='build'||kind==='raft'||kind==='depart'}
