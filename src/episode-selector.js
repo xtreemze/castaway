@@ -13,6 +13,7 @@ export function selectEpisode(world, stories, catalog, previous=null) {
  }
  for(const event of catalog){
   if(!event.requires.every(flag=>flags.has(flag)))continue;
+  if(event.kind==='milestone' && o.flags.includes(event.effects[0]))continue;
   candidates.push({family:'original',id:event.id,kind:event.id,mechanism:event.mechanism,
    visits:o.counts?.[event.id]??o.played.filter(id=>id===event.id).length,
    penalty:(recent.includes(event.id)?1.5:0)+(o.lastMechanism===event.mechanism?.35:0)+(event.id==='crab-handshake'&&bonds.crab.encounters>=2?.25:0)});
