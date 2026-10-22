@@ -1,3 +1,4 @@
+import {advanceChapter} from './chapters.js';
 // Versioned canonical persistence for both scene families.
 // Legacy keys are read only for migration; all subsequent writes use one snapshot.
 export const STORY_KEY = 'castaway-world-v2';
@@ -17,7 +18,7 @@ export function normalizeWorld(value, legacyNarrative, legacyOriginal) {
   o.played=Array.isArray(o.played)?o.played.slice(-40):[];
   o.flags=Array.isArray(o.flags)?[...new Set(o.flags)]:[];
   const current=object(snapshot.current);
-  return {version:2,narrative:n,original:o,current:{
+  return {version:2,chapter:integer(snapshot.chapter,0),narrative:n,original:o,current:{
     family:current.family==='original'||current.family==='legacy'?current.family:null,
     id:typeof current.id==='string'?current.id:null,
     elapsed:Number.isFinite(current.elapsed)?Math.min(30,Math.max(0,current.elapsed)):0,
@@ -36,6 +37,7 @@ export function completeEpisode(world,family,id,advance) {
   if(next.current.family!==family||next.current.id!==id)return next;
   if(advance)advance(next);
   next.narrative.day++;
+  next.chapter=advanceChapter(next).chapter;
   next.current={family:null,id:null,elapsed:0};
   return next;
 }
