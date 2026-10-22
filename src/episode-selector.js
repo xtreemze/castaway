@@ -1,8 +1,9 @@
 import {seededRandom} from './narrative.js';
+import {relationships} from './relationships.js';
 /** One deterministic eligibility and scoring policy for both narrative families. */
 export function selectEpisode(world, stories, catalog, previous=null) {
  const n=world.narrative, o=world.original;
- const flags=new Set(o.flags), recent=o.played.slice(-3);
+ const flags=new Set(o.flags), recent=o.played.slice(-3), bonds=relationships(world);
  const candidates=[];
  for(let i=0;i<stories.length;i++){
   const kind=stories[i][2];
@@ -14,7 +15,7 @@ export function selectEpisode(world, stories, catalog, previous=null) {
   if(!event.requires.every(flag=>flags.has(flag)))continue;
   candidates.push({family:'original',id:event.id,kind:event.id,mechanism:event.mechanism,
    visits:o.played.filter(id=>id===event.id).length,
-   penalty:(recent.includes(event.id)?1.5:0)+(o.lastMechanism===event.mechanism?.35:0)});
+   penalty:(recent.includes(event.id)?1.5:0)+(o.lastMechanism===event.mechanism?.35:0)+(event.id==='crab-handshake'&&bonds.crab.encounters>=2?.25:0)});
  }
  const pool=candidates.filter(candidate=>!previous||candidate.family!==previous.family||candidate.id!==previous.id);
  if(!pool.length)return null;
