@@ -1,5 +1,5 @@
 
-import * as T from 'three';import{sampleOriginalPropStage}from'../original-prop-stage.mjs';import{createSupplementaryOriginalMeshes}from'../original-prop-meshes.mjs';import{createCastawayRig}from'../castaway-rig.mjs';import{createWorld,updateShorelineFoam}from'../world-geometry.mjs';import{heightAt,waterHeightAt}from'../world-terrain.mjs';import{comedyPose,comedySound}from'../comedy-acting.mjs';import{newStoryState,chooseStoryEvent,completeStoryEvent,beatForTime}from'../story-director.mjs';import{samplePose,beatAt}from'../animation-director.mjs';import{positionAt,raftVisibility,plankCount}from'../scene-choreography.mjs';import{propPose,applyInventory}from'../prop-choreography.mjs';import{secondaryMotion}from'../secondary-motion.mjs';import{expressionAt}from'../character-expression.mjs';import{handContact}from'../hand-rig.mjs';import{groundContact}from'../ground-contact.mjs';import{OrbitControls}from'three/addons/controls/OrbitControls.js';
+import * as T from 'three';import{EVENTS}from'../story-catalog.mjs';import{sampleOriginalPropStage}from'../original-prop-stage.mjs';import{createSupplementaryOriginalMeshes}from'../original-prop-meshes.mjs';import{createCastawayRig}from'../castaway-rig.mjs';import{createWorld,updateShorelineFoam}from'../world-geometry.mjs';import{heightAt,waterHeightAt}from'../world-terrain.mjs';import{comedyPose,comedySound}from'../comedy-acting.mjs';import{newStoryState,chooseStoryEvent,completeStoryEvent,beatForTime}from'../story-director.mjs';import{samplePose,beatAt}from'../animation-director.mjs';import{positionAt,raftVisibility,plankCount}from'../scene-choreography.mjs';import{propPose,applyInventory}from'../prop-choreography.mjs';import{secondaryMotion}from'../secondary-motion.mjs';import{expressionAt}from'../character-expression.mjs';import{handContact}from'../hand-rig.mjs';import{groundContact}from'../ground-contact.mjs';import{OrbitControls}from'three/addons/controls/OrbitControls.js';
 const scene=new T.Scene();scene.background=new T.Color('#94cfdf');scene.fog=new T.Fog('#94cfdf',26,95);const camera=new T.PerspectiveCamera(40,innerWidth/innerHeight,.1,180);camera.position.set(12,9,17);
 const renderer=new T.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFSoftShadowMap;renderer.outputColorSpace=T.SRGBColorSpace;document.body.prepend(renderer.domElement);
 const orbit=new OrbitControls(camera,renderer.domElement);orbit.enableDamping=true;orbit.minDistance=9;orbit.maxDistance=37;orbit.maxPolarAngle=1.48;orbit.target.set(0,1,0);
@@ -93,6 +93,28 @@ function resolveEvent(){const k=stories[index][2];narrative.seen[index]=(narrati
 Object.assign(narrative,applyInventory(narrative,k));if(k==='depart'){narrative.failures++;narrative.hope=Math.max(35,narrative.hope-8);narrative.raftProgress=0}if(k==='wave'||k==='raft')narrative.hope=Math.min(100,narrative.hope+4);
 try{localStorage.setItem('castaway-story-v1',JSON.stringify(narrative))}catch{}}
 function event(n){if(originalEvent){originalEvent=null;comedyProps.visible=false;}lastFootfall=-1;if(typeof index==='number'&&total>0&&seconds>=duration-0.05)resolveEvent();previousBeat=-1;index=(n+stories.length)%stories.length;seconds=0;const [name,desc,kind,sub]=stories[index];storedCoconuts.forEach((o,i)=>o.visible=i<Math.min(8,narrative.coconuts));$('#name').textContent='Day '+narrative.day+' · '+name;$('#desc').textContent=desc;$('#sub').textContent=sub;coconut.visible=kind==='coconut';pole.visible=float.visible=kind==='fish';raft.visible=raftVisibility(narrative.raftProgress,kind);cue(460+index*25)}event(0);
+// Stable inspection links for scene geometry, rigging and comic-beat review.
+// A preview never writes story completion effects or advances the animation clock.
+const previewParams=new URLSearchParams(location.search);
+const previewId=previewParams.get('event');
+if(previewId){
+  const authored=EVENTS.find(item=>item.id===previewId);
+  const legacyIndex=stories.findIndex(item=>item[2]===previewId);
+  if(authored||legacyIndex>=0){
+    const requested=Number(previewParams.get('time')??0);
+    seconds=Number.isFinite(requested)?Math.max(0,Math.min(29.999,requested)):0;
+    if(authored){
+      originalEvent=authored;
+      $('#name').textContent='Preview · '+authored.title;
+      $('#desc').textContent=authored.phases[beatForTime(seconds)];
+      $('#sub').textContent=authored.accessibilitySummary;
+    }else event(legacyIndex);
+    // event() resets elapsed, so apply time after selecting the legacy scene.
+    if(!authored)seconds=Number.isFinite(requested)?Math.max(0,Math.min(29.999,requested)):0;
+    paused=true;
+    $('#pause').textContent='Resume';
+  }
+}
 $('#next').onclick=()=>{if(originalEvent){originalEvent=null;comedyProps.visible=false;event(index+1)}else if(!startOriginalEvent())event(index+1)};$('#pause').onclick=()=>{paused=!paused;$('#pause').textContent=paused?'Resume':'Pause'};$('#reset').onclick=()=>{camera.position.set(12,9,17);orbit.target.set(0,1,0)};$('#night').onclick=()=>{dark=!dark;scene.background.set(dark?'#0d2244':'#94cfdf');scene.fog.color.copy(scene.background);sun.intensity=dark?.5:3.1;sun.color.set(dark?'#a6bce8':'#fff1c9');seaMat.color.set(dark?'#153f67':'#207fa7');$('#night').textContent=dark?'Day':'Night'};
 $('#sound').onclick=async()=>{if(ctx){if(ctx.state==='suspended')await ctx.resume();else await ctx.suspend();$('#sound').textContent=ctx.state==='running'?'Sound on':'Sound off';return}ctx=new AudioContext();master=ctx.createGain();master.gain.value=.2;master.connect(ctx.destination);const b=ctx.createBuffer(1,ctx.sampleRate*2,ctx.sampleRate),a=b.getChannelData(0);let previous=0;for(let i=0;i<a.length;i++){previous=previous*.985+(Math.random()*2-1)*.015;a[i]=previous}const src=ctx.createBufferSource();src.buffer=b;src.loop=true;noiseFilter=ctx.createBiquadFilter();noiseFilter.type='lowpass';noiseFilter.frequency.value=400;noiseGain=ctx.createGain();noiseGain.gain.value=.7;src.connect(noiseFilter).connect(noiseGain).connect(master);src.start();$('#sound').textContent='Sound on';cue()};
 addEventListener('keydown',e=>{if(e.code==='Space'){e.preventDefault();$('#pause').click()}else if(e.code==='ArrowRight')$('#next').click()});
