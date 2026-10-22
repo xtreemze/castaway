@@ -21,6 +21,14 @@ describe('recurring character continuity',()=>{
   expect(relationships(second).crab).toMatchObject({met:true,encounters:2,trust:2,deliveredMessage:true});
   expect(relationships(JSON.parse(JSON.stringify(second)))).toEqual(relationships(second));
  });
+ it('retains encounters and trust after the short replay history rolls over',()=>{
+  let world=normalizeWorld({});
+  for(let i=0;i<60;i++)world=commit(world,'crab-handshake');
+  expect(world.original.played).toHaveLength(40);
+  expect(world.original.counts['crab-handshake']).toBe(60);
+  expect(relationships(world).crab).toMatchObject({encounters:60,trust:3});
+  expect(relationships(normalizeWorld(JSON.parse(JSON.stringify(world)))).crab.encounters).toBe(60);
+ });
  it('tracks only completed performances, never interrupted ones',()=>{
   const before=normalizeWorld({current:{family:'original',id:'crab-handshake',elapsed:17}});
   expect(relationships(before).crab.encounters).toBe(0);
