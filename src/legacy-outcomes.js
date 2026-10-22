@@ -12,6 +12,7 @@ export function completeLegacyScene(world, sceneIndex, stories) {
     n.lastEvent=sceneIndex;
     n.episode++;
     Object.assign(n,applyInventory(n,kind));
+    n.raftPeak=Math.max(n.raftPeak||0,n.raftProgress||0);
     if(kind==='depart'){
       n.failures++;n.hope=Math.max(35,n.hope-8);n.raftProgress=0;
     }
