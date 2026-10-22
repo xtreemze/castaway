@@ -49,14 +49,14 @@ export const EVENTS = Object.freeze([
   },
   {
     id:'return-to-sender',title:'Return to Sender',kind:'gag',origin:'original',mechanism:'misunderstanding',
-    durationSec:30,actors:['castaway','crab'],props:['bottle','paper'],requires:['crab_met'],effects:['bottle_sent'],
+    durationSec:30,actors:['castaway','crab'],props:['bottle','paper','cork'],requires:['crab_met'],effects:['bottle_sent'],
     phases:['He writes a carefully folded distress note.','He seals it in a bottle.','He launches the bottle into the outgoing current.','The bottle washes immediately onto the opposite side of the quay.','A crab carries it back to his feet.','He accepts the delivery with a formal nod.'],
     animation:{anticipation:1.3,impact:0.2,hold:1.8,secondary:'bottle bobbing'},sound:['cork pop','surf swish','crab footsteps'],
     accessibilitySummary:'A distress bottle washes back and a crab dutifully returns it.'
   },
   {
     id:'pier-to-nowhere',title:'The Magnificent Pier',kind:'milestone',origin:'original',mechanism:'anticlimax',
-    durationSec:30,actors:['castaway'],props:['planks','quay'],requires:[],effects:['pier_inspected'],
+    durationSec:30,actors:['castaway'],props:['planks','quay','sign'],requires:[],effects:['pier_inspected'],
     phases:['He studies the quay with great seriousness.','He sets the final plank and checks its alignment.','He proudly marches to the end.','The tide slips outward, leaving his pier above bare sand.','He looks from the dry pier to the distant water.','He puts out a tiny sign reading OPEN TOMORROW.'],
     animation:{anticipation:1.4,impact:0,hold:2,secondary:'gentle retreating water'},sound:['wood click','tide ebb','wood sign tap'],
     accessibilitySummary:'He completes a pier, only for the tide to retreat beyond it.'
