@@ -7,10 +7,10 @@ export const CHAPTERS=Object.freeze([
  {title:'Messages to Nobody',ready:w=>(w.original.flags||[]).includes('bottle_sent')},
  {title:'The Great Construction',ready:w=>Math.max(w.narrative.raftPeak||0,w.narrative.raftProgress||0)>=2},
  {title:'The Sea Has Opinions',ready:w=>(w.narrative.failures||0)>=1},
- {title:'An Unexpected Attachment',ready:w=>(w.original.episode||0)>=8},
- {title:'The Voyage',ready:w=>(w.narrative.failures||0)>=2},
- {title:'The Other Island',ready:w=>(w.narrative.episode||0)>=30},
- {title:'The Return',ready:w=>(w.narrative.episode||0)>=40}
+ {title:'An Unexpected Attachment',ready:w=>(w.original.flags||[]).includes('island_attachment')},
+ {title:'The Voyage',ready:w=>(w.original.flags||[]).includes('voyage_completed')},
+ {title:'The Other Island',ready:w=>(w.original.flags||[]).includes('mainland_arrived')},
+ {title:'The Return',ready:w=>(w.original.flags||[]).includes('island_returned')}
 ]);
 export function advanceChapter(world){
  const previous=Number.isInteger(world.chapter)?Math.max(0,Math.min(10,world.chapter)):0;
