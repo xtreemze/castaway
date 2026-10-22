@@ -19,6 +19,7 @@ test('original grasp targets are deterministic, finite and release at the payoff
       assert.ok(contact.position.every(Number.isFinite));
     }
   }
+  assert.equal(sampleOriginalHandContact('portable-shade',10,root),null);
   assert.equal(sampleOriginalHandContact('portable-shade',20,root),null);
   assert.equal(sampleOriginalHandContact('return-to-sender',15,root),null);
   assert.equal(sampleOriginalHandContact('pier-to-nowhere',26,root),null);
@@ -26,7 +27,7 @@ test('original grasp targets are deterministic, finite and release at the payoff
 });
 test('contact goals remain within the anatomical wrist reach during strongest holds',()=>{
   const shoulder=[root[0]+.33,root[1]+1.45,root[2]];
-  for(const [event,start,end] of [['portable-shade',7,11.5],['return-to-sender',6,15]]){
+  for(const [event,start,end] of [['portable-shade',7,9.8],['return-to-sender',6,15]]){
     for(let t=start;t<end;t+=.05){
       const contact=sampleOriginalHandContact(event,t,root);
       if(!contact||contact.weight<.5)continue;
