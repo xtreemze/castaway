@@ -2,6 +2,15 @@ import { chromium } from 'playwright';
 import assert from 'node:assert/strict';
 import { mkdirSync } from 'node:fs';
 mkdirSync('screenshots',{recursive:true});
+async function verifyWebGL(page,label){
+ const result=await page.locator('canvas').evaluate(canvas=>{
+  const gl=canvas.getContext('webgl2')||canvas.getContext('webgl');
+  return {width:canvas.width,height:canvas.height,webgl:!!gl,renderer:gl?.getParameter(gl.RENDERER)||null,contextLost:gl?.isContextLost()??true};
+ });
+ assert.ok(result.width>0&&result.height>0,label+' canvas has no resolution');
+ assert.ok(result.webgl&&!result.contextLost,label+' WebGL unavailable or context lost');
+ console.log(label+' WebGL:',result.renderer,result.width+'x'+result.height);
+}
 const browser=await chromium.launch({headless:true,args:['--use-gl=angle','--use-angle=swiftshader','--enable-webgl','--no-sandbox']});
 const page=await browser.newPage({viewport:{width:1280,height:720}});
 const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
@@ -14,6 +23,7 @@ await page.goto('http://127.0.0.1:4173/',{waitUntil:'load'});
 await page.waitForSelector('canvas',{timeout:20000});
 await page.waitForTimeout(3500);
 assert.equal(await page.locator('canvas').count(),1);
+await verifyWebGL(page,'desktop');
 assert.equal(await page.locator('#name').innerText()!=='',true);
 await page.locator('#next').click();
 assert.match(await page.locator('#name').innerText(),/Day/);
@@ -29,6 +39,7 @@ await mobile.goto('http://127.0.0.1:4173/',{waitUntil:'load'});
 await mobile.waitForSelector('canvas',{timeout:20000});
 await mobile.waitForTimeout(1800);
 assert.equal(await mobile.locator('canvas').count(),1);
+await verifyWebGL(mobile,'mobile');
 await mobile.locator('#next').click();
 assert.match(await mobile.locator('#name').innerText(),/Day/);
 await mobile.locator('#pause').click();
