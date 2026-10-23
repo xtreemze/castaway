@@ -143,6 +143,9 @@ function recover(reason){
   });
 }
 function start(){
+  if(storyPreview.get('renderThread')==='main'){
+    recover('explicit main-thread diagnostic');return;
+  }
   if(typeof Worker==='undefined'||typeof surface.transferControlToOffscreen!=='function'){
     recover('OffscreenCanvas unsupported');return;
   }
