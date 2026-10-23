@@ -34,7 +34,7 @@ try{
   const value=JSON.parse(localStorage.getItem('castaway-original-story-v1')||'null');
   storyState=value&&Number.isInteger(value.seed)&&Array.isArray(value.flags)&&Array.isArray(value.played)&&Number.isInteger(value.episode)?value:newStoryState();
 }catch{storyState=newStoryState()}
-let originalEvent=null,previousOriginalBeat=-1;
+let originalEvent=null,previousOriginalBeat=-1,previewOnly=false;
 const comedyProps=new T.Group();comedyProps.visible=false;scene.add(comedyProps);
 const shade=obj(new T.ConeGeometry(.78,.1,5),leaf,0,2.45,0,comedyProps);
 const stick=obj(new T.CylinderGeometry(.035,.045,.8,6),bark,0,.5,0,comedyProps);
@@ -78,7 +78,7 @@ function paintOriginalEvent(time){
 function startOriginalEvent(){
   const selected=chooseStoryEvent(storyState);
   if(!selected)return false;
-  originalEvent=selected;
+  originalEvent=selected;previewOnly=false;
   seconds=0;previousBeat=-1;previousOriginalBeat=-1;
   $('#name').textContent='Day '+narrative.day+' · '+selected.title;
   $('#desc').textContent=selected.phases[0];
@@ -87,9 +87,11 @@ function startOriginalEvent(){
 }
 function finishOriginalEvent(){
   if(!originalEvent)return;
-  storyState=completeStoryEvent(storyState,originalEvent);
-  try{localStorage.setItem('castaway-original-story-v1',JSON.stringify(storyState))}catch{}
-  originalEvent=null;comedyProps.visible=false;
+  if(!previewOnly){
+    storyState=completeStoryEvent(storyState,originalEvent);
+    try{localStorage.setItem('castaway-original-story-v1',JSON.stringify(storyState))}catch{}
+  }
+  originalEvent=null;previewOnly=false;comedyProps.visible=false;
   foam.forEach((o,i)=>o.position.y=-.45+i*.015);
 }
 const stories=[['A quiet day','He surveys his kingdom of sand.','idle','A kingdom of one.'],['Gone fishing','Patience is an admirable quality.','fish','The fish have other plans.'],['Coconut lunch','Lunch is more complicated than expected.','coconut','Lunch fights back.'],['Morning exercise','One lap is a considerable expedition.','run','Around the world in eight seconds.'],['A distant ship','He waves with unreasonable confidence.','wave','Perhaps they saw him.'],['A magnificent invention','The castaway works on a glorious plan.','build','Progress is relative.'],['The raft','Four logs and a limitless imagination.','raft','Nothing can possibly go wrong.'],['Rain dance','The weather does not cooperate.','dance','The clouds seem unimpressed.'],['Afternoon nap','There is time to dream.','sleep','He dreams of dry socks.'],['Departure','The greatest journey begins.','depart','It ends slightly sooner.'],['Something in the water','Perhaps swimming is a bad idea.','alarm','There are other options.'],['Still here','The tide brings another day.','idle','There is always tomorrow.']];
@@ -112,7 +114,7 @@ function event(n){if(originalEvent){originalEvent=null;comedyProps.visible=false
 const previewQuery=new URLSearchParams(location.search);
 const previewScene=EVENTS.find(scene=>scene.id===previewQuery.get('storyPreview'));
 if(previewScene){
-  originalEvent=previewScene;
+  originalEvent=previewScene;previewOnly=true;
   const previewTime=Number(previewQuery.get('storyTime'));
   seconds=Number.isFinite(previewTime)?Math.max(0,Math.min(duration-.001,previewTime)):0;
   paused=true;
