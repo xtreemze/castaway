@@ -141,4 +141,16 @@ if(k==='sleep'){actor.rotation.z=-1.4*smooth(seconds/6);actor.position.y=heightA
 if(k==='depart'){raft.position.x=1.6+.5*Math.sin(phase*Math.PI);raft.position.y=.05+.04*Math.sin(t*2)}
 if(k==='alarm'){arms[0].rotation.z=-1.8;arms[1].rotation.z=1.8;head.rotation.z=.18*Math.sin(t*4)*energy}stagedPose(k,seconds);const expression=expressionAt(k,seconds);const contact=handContact(k,seconds,[actor.position.x,actor.position.y,actor.position.z]);hands.forEach((hand,i)=>{hand.rotation.x=(i===contact.hand?-1:1)*contact.closure*.8;hand.children.forEach(child=>{if(child.userData.finger)child.rotation.x=contact.closure*.95})});eyes.forEach((eye,i)=>{eye.scale.y=Math.max(.09,1-expression.blink*.92);pupils[i].scale.y=eye.scale.y;pupils[i].position.x=(i===0?-.13:.13)+expression.gazeX*.025;pupils[i].position.y=.04+expression.gazeY*.03;brows[i].position.y=.145+expression.shock*.085-expression.focus*.025;brows[i].rotation.z=(i===0?-1:1)*(expression.shock*.36-expression.focus*.2)});head.rotation.x-=expression.shock*.18;legs[0].rotation.x+=secondary.leftLeg;legs[1].rotation.x+=secondary.rightLeg;arms[0].rotation.x+=secondary.leftArm;arms[1].rotation.x+=secondary.rightArm;torso.rotation.x+=secondary.lean;head.rotation.x+=secondary.lookUp;if(secondary.heading!==null&&k!=='run')actor.rotation.y=secondary.heading;if(beat!==previousBeat){if(!paused)foley(k,beat);previousBeat=beat}if(originalEvent&&beat!==previousOriginalBeat){const pitch=comedySound(originalEvent.id,beat);if(pitch&&ctx?.state==='running'&&!paused)cue(pitch);previousOriginalBeat=beat;}if(!originalEvent)playConsequences(k,seconds);else{carriedLog.visible=false;pole.visible=false;float.visible=false;coconut.visible=false;raft.visible=false;paintOriginalEvent(seconds);$('#desc').textContent=originalEvent.phases[beatForTime(seconds)];}
 secondaryRigMotion(t,expression.shock);applyFootIK(sampleFootContacts(originalEvent?.id==='pier-to-nowhere'?'pier-to-nowhere':k,seconds));if(!originalEvent&&contact.closure>0)applyHandIK(k,seconds,contact.position);if(ctx&&ctx.state==='running'&&!paused){noiseFilter.frequency.value=(dark?180:350)+90*Math.sin(t*.5);noiseGain.gain.value=.65+.2*Math.sin(t*.4);if(!dark&&t-bird>9){bird=t;cue(1200)}}
+// Opt-in read-only inspection for screenshot fixtures: the rendered wrist
+// and the pure choreography target must agree in world coordinates.
+if(previewId&&originalEvent){
+  const staged=sampleOriginalPropStage(originalEvent.id,seconds,actor.position.toArray());
+  const goal=sampleOriginalHandContact(originalEvent.id,seconds,actor.position.toArray(),staged);
+  if(goal){
+    actor.updateWorldMatrix(true,true);
+    const wrist=hands[1].getWorldPosition(new T.Vector3());
+    globalThis.__castawayContact={resource:goal.resource,weight:goal.weight,
+      distance:wrist.distanceTo(new T.Vector3(...goal.position))};
+  }else globalThis.__castawayContact=null;
+}
 $('#bar').style.width=(seconds/duration*100)+'%';orbit.update();renderer.render(scene,camera)}frame();addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;frameTheIsland();renderer.setSize(innerWidth,innerHeight)});
