@@ -64,5 +64,13 @@ await mobile.screenshot({path:'screenshots/mobile-390x844.png',fullPage:true});
 for(const t of [8,20,25])await snapshotCrabBeat(mobile,t,'mobile');
 await mobile.close();
 for(const t of [2,8,15,19.2,20,25,29])await snapshotCrabBeat(page,t,'desktop');
+// Resuming a deep-linked preview must not record it as a completed canonical event.
+const progressBefore=await page.evaluate(()=>localStorage.getItem('castaway-original-story-v1'));
+await page.goto('http://127.0.0.1:4173/?storyPreview=crab-handshake&storyTime=29.99');
+await page.waitForSelector('canvas');
+await page.locator('#pause').click();
+await page.waitForFunction(()=>!document.querySelector('#name')?.textContent?.includes('Preview'),null,{timeout:10000});
+const progressAfter=await page.evaluate(()=>localStorage.getItem('castaway-original-story-v1'));
+assert.equal(progressAfter,progressBefore,'Diagnostic preview changed saved story progression');
 assert.deepEqual(errors,[],errors.join('\n'));
 await browser.close();console.log('Browser smoke test passed');
