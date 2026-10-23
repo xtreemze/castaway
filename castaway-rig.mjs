@@ -81,11 +81,45 @@ export function createCastawayRig({T,scene,obj,ball,rod,m,skin,hair,shirt,shorts
     elbow.quaternion.slerp(elbowGoal,amount);
     return solution;
   }
+  function applyFootIK(contacts) {
+    const weight=Number.isFinite(contacts?.weight)?Math.max(0,Math.min(1,contacts.weight)):0;
+    // Slight knee compression creates reachable lateral steps without stretching bone lengths.
+    pelvis.position.y=-.105*weight;
+    if(weight<=0)return [];
+    actor.updateWorldMatrix(true,true);
+    const out=[];
+    for(const [i,foot] of [contacts.left,contacts.right].entries()){
+      if(!foot||!foot.position?.every(Number.isFinite)){out.push(null);continue;}
+      const leg=legs[i],knee=knees[i],ankle=ankles[i];
+      const hip=leg.getWorldPosition(new T.Vector3());
+      // The bend plane turns with the character, keeping knees facing travel.
+      const forward=new T.Vector3(0,-.12,.65).applyQuaternion(actor.getWorldQuaternion(new T.Quaternion()));
+      const pole=hip.clone().add(forward);
+      const solution=solveTwoBone(hip.toArray(),foot.position,pole.toArray(),LEG_UPPER,LEG_LOWER);
+      const parent=leg.parent;
+      const desiredKnee=parent.worldToLocal(new T.Vector3(...solution.elbow));
+      const localHip=parent.worldToLocal(hip.clone());
+      const thigh=desiredKnee.sub(localHip).normalize();
+      leg.quaternion.slerp(new T.Quaternion().setFromUnitVectors(up,thigh),weight);
+      leg.updateWorldMatrix(true,true);
+      const ankleInLeg=leg.worldToLocal(new T.Vector3(...solution.wrist));
+      const shin=ankleInLeg.sub(knee.position).normalize();
+      knee.quaternion.slerp(new T.Quaternion().setFromUnitVectors(up,shin),weight);
+      knee.updateWorldMatrix(true,true);
+      // Foot tops stay roughly horizontal during stance, regardless of knee flexion.
+      if(foot.planted) {
+        const counter=ankle.parent.getWorldQuaternion(new T.Quaternion()).invert();
+        ankle.quaternion.slerp(counter,weight);
+      }
+      out.push(solution);
+    }
+    return out;
+  }
   function secondaryRigMotion(time,shock=0) {
     beard.rotation.x=.08*Math.sin(time*1.3-.5)+shock*.09;
     beard.rotation.z=.065*Math.sin(time*.89-1.1);
     mouth.scale.y=1+Math.max(0,shock)*2.4;
   }
   return {actor,pelvis,torso,neck,head,beard,mouth,eyes,pupils,brows,
-    arms,hands,legs,elbows,knees,ankles,socket,applyHandIK,secondaryRigMotion};
+    arms,hands,legs,elbows,knees,ankles,socket,applyHandIK,applyFootIK,secondaryRigMotion};
 }
