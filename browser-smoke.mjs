@@ -53,6 +53,7 @@ const guideResponse=await guide.goto('http://127.0.0.1:4173/manual.html',{waitUn
 assert.equal(guideResponse?.status(),200,'manual should be included in dist/');
 assert.match(await guide.locator('h1').innerText(),/Castaway\s+Island/);
 assert.equal(await guide.locator('article.entry').count(),5,'all five original field notes must appear');
+assert.equal(await guide.locator('.qa').count(),5,'all five FAQ answers must be present in the static manual');
 assert.equal(await guide.locator('a[href="./"]').count()>0,true,'manual needs a return-to-island link');
 await guide.screenshot({path:'screenshots/manual-desktop-1280x800.png',fullPage:true});
 await guide.setViewportSize({width:390,height:844});
@@ -64,6 +65,7 @@ assert.ok(guideWidth.scroll<=guideWidth.viewport+2,'manual overflows portrait vi
 await guide.screenshot({path:'screenshots/manual-mobile-390x844.png',fullPage:true});
 await guide.emulateMedia({media:'print'});
 assert.equal(await guide.locator('.mast').evaluate(e=>getComputedStyle(e).display),'none','print should hide navigation');
+assert.equal(await guide.locator('.qa').first().isVisible(),true,'print must retain FAQ answers');
 await guide.close();
 const mobile=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:1,isMobile:true,hasTouch:true});
 mobile.on('pageerror',e=>errors.push('mobile: '+e.message));
