@@ -51,7 +51,7 @@ const guide=await browser.newPage({viewport:{width:1280,height:800}});
 guide.on('pageerror',e=>errors.push('manual: '+e.message));
 const guideResponse=await guide.goto('http://127.0.0.1:4173/manual.html',{waitUntil:'load'});
 assert.equal(guideResponse?.status(),200,'manual should be included in dist/');
-assert.match(await guide.locator('h1').innerText(),/Castaway\\s+Island/);
+assert.match(await guide.locator('h1').innerText(),/Castaway\s+Island/);
 assert.equal(await guide.locator('article.entry').count(),5,'all five original field notes must appear');
 assert.equal(await guide.locator('a[href="./"]').count()>0,true,'manual needs a return-to-island link');
 await guide.screenshot({path:'screenshots/manual-desktop-1280x800.png',fullPage:true});
