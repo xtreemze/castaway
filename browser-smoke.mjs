@@ -107,5 +107,19 @@ const restoredFrame=await mobile.evaluate(()=>window.__castawayFrameInspection?.
 assert.ok(restoredFrame.projected.every(([x,y])=>Math.abs(x)<.92&&Math.abs(y)<.75),
   'restored portrait resize clipped story geometry');
 await mobile.close();
+// Mainline PR #32 introduced an alternate storyboard-preview URL. Keep it
+// functional after folding the merged crab scene into the articulated rig.
+for(const time of [8,19.8,25]){
+  await page.goto('http://127.0.0.1:4173/?storyPreview=crab-handshake&storyTime='+time,{waitUntil:'load'});
+  await page.waitForSelector('canvas',{timeout:20000});
+  await page.waitForFunction(()=>Boolean(window.__castawayCrab),{timeout:10000});
+  const sample=await page.evaluate(()=>window.__castawayCrab);
+  assert.match(await page.locator('#name').innerText(),/Diplomatic Relations/);
+  assert.equal(await page.locator('#pause').innerText(),'Resume');
+  assert.ok(Number.isFinite(sample.handGap)&&Number.isFinite(sample.clawGap));
+  if(time<18.6)assert.ok(sample.handGap<.002,'glove detached from castaway hand @'+time);
+  if(time>=19.8)assert.ok(sample.clawGap<.002,'glove detached from crab claw @'+time);
+  await page.screenshot({path:'screenshots/episodes/desktop-storyPreview-crab-'+time+'s.png'});
+}
 assert.deepEqual(errors,[],errors.join('\n'));
 await browser.close();console.log('Browser smoke test passed');
