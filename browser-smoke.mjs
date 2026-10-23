@@ -40,6 +40,10 @@ async function captureEpisodeFixtures(page,mode){
     assert.match(await page.locator('#name').innerText(),new RegExp(title));
     assert.equal(await page.locator('#pause').innerText(),'Resume');
     await verifyWebGL(page,mode+' '+id+' @ '+time);
+    const frame=await page.evaluate(()=>window.__castawayFrameInspection?.());
+    assert.ok(frame&&frame.distance>0,mode+' '+id+' camera inspection unavailable');
+    assert.ok(frame.projected.every(([x,y])=>Math.abs(x)<.92&&Math.abs(y)<.75),
+      mode+' '+id+' clipped beach, canopy or quay');
     await page.screenshot({path:'screenshots/episodes/'+mode+'-'+id+'-'+time+'s.png'});
   }
 }
@@ -81,6 +85,18 @@ await mobile.locator('#night').click();
 assert.equal(await mobile.locator('#night').innerText(),'Day');
 await mobile.screenshot({path:'screenshots/mobile-390x844.png',fullPage:true});
 await captureEpisodeFixtures(mobile,'mobile');
+await mobile.setViewportSize({width:844,height:390});
+await mobile.waitForTimeout(350);
+const landscapeFrame=await mobile.evaluate(()=>window.__castawayFrameInspection?.());
+assert.ok(landscapeFrame&&landscapeFrame.aspect>2);
+assert.ok(landscapeFrame.projected.every(([x,y])=>Math.abs(x)<.92&&Math.abs(y)<.75),
+  'landscape resize clipped story geometry');
+await mobile.screenshot({path:'screenshots/episodes/mobile-landscape-run-21s.png'});
+await mobile.setViewportSize({width:390,height:844});
+await mobile.waitForTimeout(350);
+const restoredFrame=await mobile.evaluate(()=>window.__castawayFrameInspection?.());
+assert.ok(restoredFrame.projected.every(([x,y])=>Math.abs(x)<.92&&Math.abs(y)<.75),
+  'restored portrait resize clipped story geometry');
 await mobile.close();
 assert.deepEqual(errors,[],errors.join('\n'));
 await browser.close();console.log('Browser smoke test passed');
