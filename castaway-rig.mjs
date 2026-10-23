@@ -81,11 +81,46 @@ export function createCastawayRig({T,scene,obj,ball,rod,m,skin,hair,shirt,shorts
     elbow.quaternion.slerp(elbowGoal,amount);
     return solution;
   }
+  // Solve terrain-aware feet after authored FK and before rendering. The sole sits
+  // .09 units below the ankle; sampling is absolute rather than frame-integrated.
+  function applyFootIK(terrainHeight, weight=1) {
+    if(typeof terrainHeight!=='function')throw new TypeError('terrainHeight must be a function');
+    const amount=Math.max(0,Math.min(1,Number.isFinite(weight)?weight:0));
+    if(amount===0)return [];
+    const results=[];
+    for(let i=0;i<2;i++) {
+      const hip=legs[i],knee=knees[i],ankle=ankles[i];
+      actor.updateWorldMatrix(true,true);
+      const root=hip.getWorldPosition(new T.Vector3());
+      const current=ankle.getWorldPosition(new T.Vector3());
+      const ground=terrainHeight(current.x,current.z);
+      if(!Number.isFinite(ground))throw new RangeError('Non-finite terrain height');
+      const target=new T.Vector3(current.x,ground+.09,current.z);
+      // Preserve existing slapstick/airborne poses: never pull a foot across a
+      // large vertical gap or reverse a bent knee to force unreachable contact.
+      if(Math.abs(target.y-current.y)>.24){results.push(null);continue;}
+      const pole=root.clone().add(new T.Vector3(i===0?-.2:.2,-.2,.6));
+      const solution=solveTwoBone(root.toArray(),target.toArray(),pole.toArray(),LEG_UPPER,LEG_LOWER);
+      const parent=hip.parent;
+      const hipLocal=parent.worldToLocal(root.clone());
+      const kneeLocal=parent.worldToLocal(new T.Vector3(...solution.elbow));
+      const thighDirection=kneeLocal.sub(hipLocal).normalize();
+      const hipGoal=new T.Quaternion().setFromUnitVectors(up,thighDirection);
+      hip.quaternion.slerp(hipGoal,amount);
+      hip.updateWorldMatrix(true,true);
+      const ankleLocal=hip.worldToLocal(new T.Vector3(...solution.wrist));
+      const shinDirection=ankleLocal.sub(knee.position).normalize();
+      const kneeGoal=new T.Quaternion().setFromUnitVectors(up,shinDirection);
+      knee.quaternion.slerp(kneeGoal,amount);
+      results.push(solution);
+    }
+    return results;
+  }
   function secondaryRigMotion(time,shock=0) {
     beard.rotation.x=.08*Math.sin(time*1.3-.5)+shock*.09;
     beard.rotation.z=.065*Math.sin(time*.89-1.1);
     mouth.scale.y=1+Math.max(0,shock)*2.4;
   }
   return {actor,pelvis,torso,neck,head,beard,mouth,eyes,pupils,brows,
-    arms,hands,legs,elbows,knees,ankles,socket,applyHandIK,secondaryRigMotion};
+    arms,hands,legs,elbows,knees,ankles,socket,applyHandIK,applyFootIK,secondaryRigMotion};
 }
