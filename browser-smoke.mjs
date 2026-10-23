@@ -85,6 +85,30 @@ await mobile.locator('#night').click();
 assert.equal(await mobile.locator('#night').innerText(),'Day');
 await mobile.screenshot({path:'screenshots/mobile-390x844.png',fullPage:true});
 await captureEpisodeFixtures(mobile,'mobile');
+// Opt-in editorial framing proof: actual browser projections must include the
+// actor and event-owned prop, not just the unzoomed shoreline boundary.
+for(const [id,time,shot] of [
+  ['portable-shade',9,'leaf-grasp'],
+  ['return-to-sender',12.5,'message-sealing'],
+  ['pier-to-nowhere',26,'pier-payoff'],
+]){
+  await mobile.goto('http://127.0.0.1:4173/?event='+id+'&time='+time+'&storyCamera=1',{waitUntil:'load'});
+  await mobile.waitForSelector('canvas',{timeout:20000});
+  await mobile.waitForTimeout(450);
+  const sampled=await mobile.evaluate(()=>window.__castawayStoryCameraInspection?.());
+  assert.ok(sampled&&sampled.shot===shot,id+' missing deterministic camera shot');
+  assert.ok(sampled.distance<sampled.stageDistance*.995,id+' camera did not magnify focus');
+  assert.ok(sampled.projected.every(([x,y])=>Math.abs(x)<.98&&Math.abs(y)<.90),
+    id+' story contact landmark clipped');
+  await mobile.screenshot({path:'screenshots/episodes/story-focus-mobile-'+id+'-'+time+'s.png'});
+}
+await mobile.emulateMedia({reducedMotion:'reduce'});
+await mobile.goto('http://127.0.0.1:4173/?event=portable-shade&time=9&storyCamera=1',{waitUntil:'load'});
+await mobile.waitForSelector('canvas',{timeout:20000});
+await mobile.waitForTimeout(450);
+assert.equal(await mobile.evaluate(()=>window.__castawayStoryCameraInspection?.()),null,
+  'reduced-motion preference must disable automatic story camera');
+await mobile.emulateMedia({reducedMotion:'no-preference'});
 await mobile.setViewportSize({width:844,height:390});
 await mobile.waitForTimeout(350);
 const landscapeFrame=await mobile.evaluate(()=>window.__castawayFrameInspection?.());
