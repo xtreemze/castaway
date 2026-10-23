@@ -46,6 +46,9 @@ async function captureEpisodeFixtures(page,mode){
     assert.match(await page.locator('#name').innerText(),new RegExp(title));
     assert.equal(await page.locator('#pause').innerText(),'Resume');
     await verifyWebGL(page,mode+' '+id+' @ '+time);
+    const contact=await page.evaluate(()=>window.__castawayContact??null);
+    if(contact&&contact.weight>=.99)
+      assert.ok(contact.distance<.055,mode+' '+id+' @ '+time+' wrist-to-prop gap: '+JSON.stringify(contact));
     const frame=await page.evaluate(()=>window.__castawayFrameInspection?.());
     assert.ok(frame&&frame.distance>0,mode+' '+id+' camera inspection unavailable');
     assert.ok(frame.projected.every(([x,y])=>Math.abs(x)<.92&&Math.abs(y)<.75),
