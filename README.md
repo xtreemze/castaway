@@ -3,7 +3,7 @@
 
 *One island. One palm tree. One very determined gentleman. An ocean with other plans.*
 
-**[Visit the island](https://xtreemze.github.io/castaway/)** · [Report an island emergency](https://github.com/xtreemze/castaway/issues) · [Explore the expedition's source](https://github.com/xtreemze/castaway)
+**[Visit the island](https://xtreemze.github.io/castaway/)** · **[Read the illustrated field guide](https://xtreemze.github.io/castaway/manual.html)** · [Report an island emergency](https://github.com/xtreemze/castaway/issues) · [Explore the expedition's source](https://github.com/xtreemze/castaway)
 
 ---
 
@@ -20,6 +20,8 @@
 It is part miniature stage, part living screensaver, and part illustrated chronicle of human ingenuity encountering a coconut. The sea rolls in. The palm sways. The gentleman devises a plan. The island expresses its opinion.
 
 The world performs short comic scenes approximately every **30 seconds**, mixing idle island life with increasingly elaborate physical comedy. There is no score to chase and no need to supervise every minute. You may watch an entire absurd little life unfold, or simply leave the island to get on with it.
+
+For the full pocket-manual presentation, open the [illustrated, printable field guide](https://xtreemze.github.io/castaway/manual.html). It includes a vintage cover, annotated castaway field notes, quick-reference controls, and a print layout that works without scripts or remote assets. Use your browser's **Print → Save as PDF** option if you wish to keep a copy.
 
 **The island's official motto:** *There is always tomorrow.*
 
@@ -140,6 +142,10 @@ The intended presentation is gentle and readable: the island remains a peaceful 
 ## VIII. Notes for the Island's Maintenance Department
 
 *The following pages are intended for people who insist on fixing things that are already funny.*
+
+### The illustrated edition
+
+The [field-guide booklet](https://xtreemze.github.io/castaway/manual.html) is also shipped as `public/manual.html`, copied into the GitHub Pages build as a stand-alone, responsive, printable page. Its text remains in step with this README and the five registered original vignettes. The cover illustration is original inline vector artwork, and the booklet requires no JavaScript, downloads, fonts, or image hosting to read.
 
 ### Technology and prerequisites
 
