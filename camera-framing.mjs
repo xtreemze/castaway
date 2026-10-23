@@ -53,17 +53,22 @@ function basis(direction){
 }
 const dot=(a,b)=>a.reduce((sum,v,i)=>sum+v*b[i],0);
 
-export function stageFitDistance(aspect,fovDegrees,direction,opts={}){
+// The same projection maths applies to the whole stage and authored comic closeups.
+// Keep the geometry math renderer-independent so CI can exercise it without WebGL.
+export function fitCameraPoints(aspect,fovDegrees,direction,target,points,opts={}){
   if(!(Number.isFinite(aspect)&&aspect>0&&Number.isFinite(fovDegrees)&&fovDegrees>1&&fovDegrees<160))
     throw new RangeError('Valid aspect and vertical FOV required');
+  if(!Array.isArray(target)||target.length!==3||!target.every(Number.isFinite)||
+     !Array.isArray(points)||!points.length||!points.every(p=>Array.isArray(p)&&p.length===3&&p.every(Number.isFinite)))
+    throw new TypeError('Finite target and nonempty landmark points required');
   const {d,r,up}=basis(direction);
   const tanHalf=Math.tan(fovDegrees*Math.PI/360);
   const marginX=opts.marginX??.9,marginY=opts.marginY??.73;
-  if(marginX<=0||marginX>1||marginY<=0||marginY>1)
+  if(!(marginX>0&&marginX<=1&&marginY>0&&marginY<=1))
     throw new RangeError('Invalid frame margins');
   let distance=Math.max(0,opts.minDistance??0);
-  for(const point of STAGE_FRAME_POINTS){
-    const rel=point.map((v,i)=>v-FRAME_TARGET[i]);
+  for(const point of points){
+    const rel=point.map((v,i)=>v-target[i]);
     const depth=dot(rel,d);
     distance=Math.max(distance,
       depth+Math.abs(dot(rel,r))/(aspect*tanHalf*marginX),
@@ -72,12 +77,19 @@ export function stageFitDistance(aspect,fovDegrees,direction,opts={}){
   return distance+.05;
 }
 
-export function sampleStageProjection(aspect,fovDegrees,direction,distance){
+export function projectCameraPoints(aspect,fovDegrees,direction,target,distance,points){
   const {d,r,up}=basis(direction),tanHalf=Math.tan(fovDegrees*Math.PI/360);
-  if(!(distance>0))throw new RangeError('Positive distance required');
-  return STAGE_FRAME_POINTS.map(point=>{
-    const rel=point.map((v,i)=>v-FRAME_TARGET[i]);
+  if(!(Number.isFinite(aspect)&&aspect>0&&Number.isFinite(fovDegrees)&&fovDegrees>1&&fovDegrees<160&&distance>0))
+    throw new RangeError('Valid camera projection required');
+  return points.map(point=>{
+    const rel=point.map((v,i)=>v-target[i]);
     const depth=distance-dot(rel,d);
     return [dot(rel,r)/(depth*tanHalf*aspect),dot(rel,up)/(depth*tanHalf)];
   });
+}
+export function stageFitDistance(aspect,fovDegrees,direction,opts={}){
+  return fitCameraPoints(aspect,fovDegrees,direction,FRAME_TARGET,STAGE_FRAME_POINTS,opts);
+}
+export function sampleStageProjection(aspect,fovDegrees,direction,distance){
+  return projectCameraPoints(aspect,fovDegrees,direction,FRAME_TARGET,distance,STAGE_FRAME_POINTS);
 }
