@@ -4,6 +4,7 @@ import {heightAt} from './world-terrain.mjs';
 import {sampleOriginalPropStage,sampleSundialPebbles,samplePierApproach} from './original-prop-stage.mjs';
 import {sampleOriginalHandContact} from './original-hand-contact.mjs';
 import {solveTwoBone} from './rig-kinematics.mjs';
+import {sampleFootContacts} from './foot-contact.mjs';
 
 const distance=(a,b)=>Math.hypot(...a.map((v,i)=>v-b[i]));
 const root=[0,heightAt(0,.2)-.03,.2];
@@ -66,4 +67,26 @@ test('quay sign is placed by a reachable actor, then releases to the quay',()=>{
   }
   assert.equal(sampleOriginalHandContact('pier-to-nowhere',25.15,samplePierApproach(25.15)),null);
   assert.equal(sampleOriginalPropStage('pier-to-nowhere',26).sign.owner,'quay');
+});
+
+test('quay approach has a continuous, deterministic alternating planted-foot gait',()=>{
+  assert.equal(sampleFootContacts('pier-to-nowhere',4).weight,0);
+  assert.equal(sampleFootContacts('pier-to-nowhere',20).weight,0);
+  let planted=0;
+  for(let t=6;t<19;t+=.04){
+    const a=sampleFootContacts('pier-to-nowhere',t);
+    const b=sampleFootContacts('pier-to-nowhere',t+1e-5);
+    assert.deepEqual(a,sampleFootContacts('pier-to-nowhere',t));
+    assert.ok(a.weight>=0&&a.weight<=1);
+    for(const side of ['left','right']){
+      const p=a[side],q=b[side];
+      assert.ok(p.position.every(Number.isFinite));
+      assert.ok(distance(p.position,q.position)<.004,'foot position discontinuity at '+t);
+      if(p.planted&&q.planted){
+        planted++;
+        assert.ok(distance(p.position,q.position)<1e-9,'stance foot slides at '+t);
+      }
+    }
+  }
+  assert.ok(planted>40,'expected a sustained quay-walk stance');
 });
