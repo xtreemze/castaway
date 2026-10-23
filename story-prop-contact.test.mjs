@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {heightAt} from './world-terrain.mjs';
-import {sampleOriginalPropStage,sampleSundialPebbles,samplePierApproach} from './original-prop-stage.mjs';
+import {sampleOriginalPropStage,sampleSundialPebbles,samplePierApproach,samplePierHeading} from './original-prop-stage.mjs';
 import {sampleOriginalHandContact} from './original-hand-contact.mjs';
 import {solveTwoBone} from './rig-kinematics.mjs';
 import {sampleFootContacts} from './foot-contact.mjs';
@@ -89,4 +89,14 @@ test('quay approach has a continuous, deterministic alternating planted-foot gai
     }
   }
   assert.ok(planted>40,'expected a sustained quay-walk stance');
+});
+
+test('walking actor faces travel and turns smoothly to the quay sign',()=>{
+  const walking=samplePierHeading(14),sign=samplePierHeading(24);
+  assert.ok(walking>1.2&&walking<1.4,'walk should follow roughly positive X');
+  assert.ok(Math.abs(sign-.12)<1e-10,'sign interaction should face quay');
+  for(let t=0;t<30;t+=.05){
+    assert.ok(Math.abs(samplePierHeading(t)-samplePierHeading(t+.0001))<.003,
+      'abrupt story-heading transition at '+t);
+  }
 });
