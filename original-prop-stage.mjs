@@ -1,3 +1,4 @@
+import {heightAt} from './world-terrain.mjs';
 import {EVENTS} from './story-catalog.mjs';
 
 // Each story prop resolves to one renderer mesh or a named environment fixture.
@@ -15,6 +16,45 @@ const mix=(a,b,t)=>a+(b-a)*t;
 const blend=(a,b,t)=>a.map((x,i)=>mix(x,b[i],t));
 const pose=(visible=false,position=[0,0,0],rotation=[0,0,0],owner='world')=>
   ({visible,position,rotation,owner});
+
+// Eight small pebbles are deliberately handled one at a time. Each travels
+// from an accessible right-hand grip to a fixed, terrain-sampled sundial ring.
+// The pose depends only on vignette time, not frame history or physics state.
+export function sampleSundialPebbles(seconds,root=[0,0,.2]) {
+  const t=Number.isFinite(seconds)?Math.max(0,Math.min(30,seconds)):0;
+  const held=[root[0]+.47,root[1]+1.17,root[2]+.23];
+  return Array.from({length:8},(_,i)=>{
+    const start=8+i*.78;
+    const angle=i*Math.PI/4;
+    const x=.25+Math.cos(angle)*.46,z=.4+Math.sin(angle)*.46;
+    const ground=[x,heightAt(x,z)+.067,z];
+    if(t<start)return pose();
+    const phase=Math.min(1,(t-start)/.78);
+    const flight=ease((phase-.46)/.54);
+    const position=blend(held,ground,flight);
+    if(flight>0&&flight<1)position[1]+=.065*Math.sin(Math.PI*flight);
+    return pose(true,position,[0,0,0],phase<.46?'wrist-right':'ground');
+  });
+}
+
+// Blocking approaches the quay on foot before the end-of-scene sign placement.
+// The sign remains at the near end of the dock, within the castaway's reach.
+export function samplePierApproach(seconds) {
+  const t=Number.isFinite(seconds)?Math.max(0,Math.min(30,seconds)):0;
+  const progress=ease((t-5)/15);
+  const x=2.65*progress,z=.2+.65*progress;
+  return [x,heightAt(x,z)-.03,z];
+}
+
+// Align the body with its actual walking route, then turn toward the sign.
+// The turn is time-addressable, so a resumed or inspected beat has no history.
+export function samplePierHeading(seconds) {
+  const t=Number.isFinite(seconds)?Math.max(0,Math.min(30,seconds)):0;
+  const travelHeading=Math.atan2(2.65,.65);
+  const faceWalk=ease((t-5)/1.2)*(1-ease((t-20)/3));
+  return mix(.12,travelHeading,faceWalk);
+}
+
 
 export function validateStoryPropCoverage(events=EVENTS) {
   const errors=[];
@@ -47,8 +87,8 @@ export function sampleOriginalPropStage(eventId,seconds,root=[0,0,.2]) {
     if(t>=20)result.shade.owner='wind';
   }
   if(eventId==='sundial') {
-    result.stick=pose(t>=6,[.25,.40,.4],[0,0,0], 'ground');
-    result.pebbles=pose(t>=8,[.25,.045,.4],[0,0,0], 'ground');
+    result.stick=pose(t>=6,[.25,heightAt(.25,.4)+.40,.4],[0,0,0], 'ground');
+    result.pebbles=pose(t>=8,[.25,heightAt(.25,.4)+.067,.4],[0,0,0], 'ground');
   }
   if(eventId==='return-to-sender') {
     const held=[x+.55,y+1.04,z+.35];
@@ -75,9 +115,9 @@ export function sampleOriginalPropStage(eventId,seconds,root=[0,0,.2]) {
     ],[0,0,0],t<15?'wrist-right':'bottle');
   }
   if(eventId==='pier-to-nowhere') {
-    const rise=ease((t-24)/2);
-    result.sign=pose(t>=24,[4.52,.02+(1-rise)*.3,1.08],
-      [0,0,(1-rise)*.22],t<26?'wrist-right':'quay');
+    const settle=ease((t-24)/2);
+    result.sign=pose(t>=24,[3.12,.24+(1-settle)*.42,.85],
+      [0,0,(1-settle)*.15],t<25.15?'wrist-right':'quay');
   }
   return result;
 }

@@ -18,12 +18,18 @@ const fixtures=[
   ['portable-shade',10,'The Portable Shade'],
   ['portable-shade',23,'The Portable Shade'],
   ['crab-handshake',21,'Diplomatic Relations'],
+  ['sundial',8.2,'The Perfect Timepiece'],
+  ['sundial',11.3,'The Perfect Timepiece'],
+  ['sundial',14.4,'The Perfect Timepiece'],
   ['sundial',21,'The Perfect Timepiece'],
   ['return-to-sender',11,'Return to Sender'],
   ['return-to-sender',13,'Return to Sender'],
   ['return-to-sender',14,'Return to Sender'],
   ['return-to-sender',24,'Return to Sender'],
   ['pier-to-nowhere',18,'The Magnificent Pier'],
+  ['pier-to-nowhere',14,'The Magnificent Pier'],
+  ['pier-to-nowhere',24.6,'The Magnificent Pier'],
+  ['pier-to-nowhere',25.1,'The Magnificent Pier'],
   ['pier-to-nowhere',26,'The Magnificent Pier'],
   ['fish',5,'Gone fishing'],
   ['fish',21,'Gone fishing'],
@@ -40,6 +46,9 @@ async function captureEpisodeFixtures(page,mode){
     assert.match(await page.locator('#name').innerText(),new RegExp(title));
     assert.equal(await page.locator('#pause').innerText(),'Resume');
     await verifyWebGL(page,mode+' '+id+' @ '+time);
+    const contact=await page.evaluate(()=>window.__castawayContact??null);
+    if(contact&&contact.weight>=.99)
+      assert.ok(contact.distance<.055,mode+' '+id+' @ '+time+' wrist-to-prop gap: '+JSON.stringify(contact));
     const frame=await page.evaluate(()=>window.__castawayFrameInspection?.());
     assert.ok(frame&&frame.distance>0,mode+' '+id+' camera inspection unavailable');
     assert.ok(frame.projected.every(([x,y])=>Math.abs(x)<.92&&Math.abs(y)<.75),
@@ -98,5 +107,19 @@ const restoredFrame=await mobile.evaluate(()=>window.__castawayFrameInspection?.
 assert.ok(restoredFrame.projected.every(([x,y])=>Math.abs(x)<.92&&Math.abs(y)<.75),
   'restored portrait resize clipped story geometry');
 await mobile.close();
+// Mainline PR #32 introduced an alternate storyboard-preview URL. Keep it
+// functional after folding the merged crab scene into the articulated rig.
+for(const time of [8,19.8,25]){
+  await page.goto('http://127.0.0.1:4173/?storyPreview=crab-handshake&storyTime='+time,{waitUntil:'load'});
+  await page.waitForSelector('canvas',{timeout:20000});
+  await page.waitForFunction(()=>Boolean(window.__castawayCrab),{timeout:10000});
+  const sample=await page.evaluate(()=>window.__castawayCrab);
+  assert.match(await page.locator('#name').innerText(),/Diplomatic Relations/);
+  assert.equal(await page.locator('#pause').innerText(),'Resume');
+  assert.ok(Number.isFinite(sample.handGap)&&Number.isFinite(sample.clawGap));
+  if(time<18.6)assert.ok(sample.handGap<.002,'glove detached from castaway hand @'+time);
+  if(time>=19.8)assert.ok(sample.clawGap<.002,'glove detached from crab claw @'+time);
+  await page.screenshot({path:'screenshots/episodes/desktop-storyPreview-crab-'+time+'s.png'});
+}
 assert.deepEqual(errors,[],errors.join('\n'));
 await browser.close();console.log('Browser smoke test passed');

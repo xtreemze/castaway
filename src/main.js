@@ -1,5 +1,5 @@
 
-import * as T from 'three';import{EVENTS}from'../story-catalog.mjs';import{sampleOriginalPropStage}from'../original-prop-stage.mjs';import{sampleOriginalHandContact}from'../original-hand-contact.mjs';import{createSupplementaryOriginalMeshes}from'../original-prop-meshes.mjs';import{createCastawayRig}from'../castaway-rig.mjs';import{createWorld,updateShorelineFoam}from'../world-geometry.mjs';import{heightAt,waterHeightAt}from'../world-terrain.mjs';import{comedyPose,comedySound}from'../comedy-acting.mjs';import{newStoryState,chooseStoryEvent,completeStoryEvent,beatForTime}from'../story-director.mjs';import{samplePose,beatAt}from'../animation-director.mjs';import{positionAt,raftVisibility,plankCount}from'../scene-choreography.mjs';import{propPose,applyInventory}from'../prop-choreography.mjs';import{secondaryMotion}from'../secondary-motion.mjs';import{expressionAt}from'../character-expression.mjs';import{handContact}from'../hand-rig.mjs';import{groundContact}from'../ground-contact.mjs';import{sampleFootContacts}from'../foot-contact.mjs';import{stageFitDistance,sampleStageProjection}from'../camera-framing.mjs';import{OrbitControls}from'three/addons/controls/OrbitControls.js';
+import * as T from 'three';import{EVENTS}from'../story-catalog.mjs';import{crabBlocking}from'../crab-choreography.mjs';import{sampleOriginalPropStage,sampleSundialPebbles,samplePierApproach,samplePierHeading}from'../original-prop-stage.mjs';import{sampleOriginalHandContact}from'../original-hand-contact.mjs';import{createSupplementaryOriginalMeshes}from'../original-prop-meshes.mjs';import{createCastawayRig}from'../castaway-rig.mjs';import{createWorld,updateShorelineFoam}from'../world-geometry.mjs';import{heightAt,waterHeightAt}from'../world-terrain.mjs';import{comedyPose,comedySound}from'../comedy-acting.mjs';import{newStoryState,chooseStoryEvent,completeStoryEvent,beatForTime}from'../story-director.mjs';import{samplePose,beatAt}from'../animation-director.mjs';import{positionAt,raftVisibility,plankCount}from'../scene-choreography.mjs';import{propPose,applyInventory}from'../prop-choreography.mjs';import{secondaryMotion}from'../secondary-motion.mjs';import{expressionAt}from'../character-expression.mjs';import{handContact}from'../hand-rig.mjs';import{groundContact}from'../ground-contact.mjs';import{sampleFootContacts}from'../foot-contact.mjs';import{stageFitDistance,sampleStageProjection}from'../camera-framing.mjs';import{OrbitControls}from'three/addons/controls/OrbitControls.js';
 const scene=new T.Scene();scene.background=new T.Color('#94cfdf');scene.fog=new T.Fog('#94cfdf',26,95);const camera=new T.PerspectiveCamera(40,innerWidth/innerHeight,.1,180);camera.position.set(12,9,17);
 const renderer=new T.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFSoftShadowMap;renderer.outputColorSpace=T.SRGBColorSpace;document.body.prepend(renderer.domElement);
 const orbit=new OrbitControls(camera,renderer.domElement);orbit.enableDamping=true;orbit.minDistance=9;orbit.maxDistance=37;orbit.maxPolarAngle=1.48;orbit.target.set(0,1,0);
@@ -29,12 +29,17 @@ const pebbleMeshes=Array.from({length:8},(_,i)=>ball(.065,wood,Math.cos(i*Math.P
 const crab=new T.Group();comedyProps.add(crab);crab.position.set(.8,.12,.7);
 ball(.18,m('#cf654a'),0,.06,0,crab);for(let side of [-1,1])for(let i=0;i<3;i++)rod([side*.1,.05,i*.09-.1],[side*.31,-.05,i*.14-.2],.025,m('#bf694b'),crab);
 const glove=obj(new T.BoxGeometry(.2,.055,.18),leaf2,0,.2,0,comedyProps);
+const gloveHandSocket=new T.Vector3(),gloveCrabSocket=new T.Vector3();
 const bottle=obj(new T.CylinderGeometry(.085,.1,.37,7),new T.MeshStandardMaterial({color:'#8fc8b6',transparent:true,opacity:.8}),0,.2,0,comedyProps);
 const supplementalProps=createSupplementaryOriginalMeshes({T,obj,m,white,wood,bark,leaf,comedyProps});
 function paintOriginalEvent(time){
   comedyProps.visible=Boolean(originalEvent);
   if(!originalEvent)return;
   const id=originalEvent.id,beat=beatForTime(time),impact=smooth((time-19)/4);
+  if(id==='pier-to-nowhere'){
+    actor.position.set(...samplePierApproach(time));
+    actor.rotation.y=samplePierHeading(time);
+  }
   const staged=sampleOriginalPropStage(id,time,actor.position.toArray());
   const meshes={shade,stick,bottle,...supplementalProps};
   for(const [key,mesh] of Object.entries(meshes)){
@@ -45,22 +50,32 @@ function paintOriginalEvent(time){
       mesh.rotation.set(...state.rotation);
     }
   }
+  const pebbleStates=sampleSundialPebbles(id==='sundial'?time:0,actor.position.toArray());
   pebbleMeshes.forEach((p,i)=>{
-    p.visible=staged.pebbles.visible;
-    if(p.visible) {
-      const [x,y,z]=staged.pebbles.position;
-      p.position.set(x+Math.cos(i*Math.PI/4)*.55,y,z+Math.sin(i*Math.PI/4)*.55);
-    }
+    const state=id==='sundial'?pebbleStates[i]:null;
+    p.visible=Boolean(state?.visible);
+    if(p.visible)p.position.set(...state.position);
   });
-  // Keep the existing crab/glove choreography until PR #16 is reconciled.
+  // Use the deterministic mainline crab authority (PR #16), projected onto
+  // the new articulated wrist socket instead of a hand-position guess.
   crab.visible=id==='crab-handshake'||id==='return-to-sender';
   glove.visible=id==='crab-handshake';
-  crab.position.x=.8+(beat>=3?Math.min(1,(time-19)/6)*2:0);
-  crab.position.z=.7+.025*Math.sin(time*7);
-  glove.position.set(beat<3?actor.position.x+.4:crab.position.x,beat<3?1.18:crab.position.y+.22,beat<3?actor.position.z+.2:crab.position.z);
-  if(id==='crab-handshake'){crab.rotation.y=beat>=3?.5*impact:0;glove.rotation.z=beat>=3?.28*Math.sin(time*8):0;}
+  const crabBeat=id==='crab-handshake'?crabBlocking(time):null;
+  if(crabBeat){
+    crab.position.set(crabBeat.crabX,.12,crabBeat.crabZ);
+    crab.scale.setScalar(crabBeat.crabScale);
+    glove.rotation.z=crabBeat.gloveAngle;
+    torso.rotation.x+=.42*crabBeat.handBend+.18*crabBeat.bow;
+    arms[1].rotation.x-=1.2*crabBeat.handReach;
+    head.rotation.x+=.22*crabBeat.recognition;
+    head.rotation.z-=.2*crabBeat.recognition;
+  }else{
+    crab.scale.setScalar(1);
+    crab.position.x=.8+(beat>=3?Math.min(1,(time-19)/6)*2:0);
+    crab.position.z=.7+.025*Math.sin(time*7);
+    glove.scale.setScalar(1);
+  }
   if(id==='sundial')crown.rotation.z+=beat>=3?.22*impact:0;
-  if(id==='pier-to-nowhere'){actor.position.x=1.4;actor.rotation.y=.7;}
   const acting=comedyPose(id,time);
   torso.rotation.x+=acting.lean;head.rotation.z+=acting.headRoll;
   head.rotation.x+=acting.lookUp;arms[1].rotation.x+=acting.arm;actor.rotation.y+=acting.bodyTurn;
@@ -68,6 +83,23 @@ function paintOriginalEvent(time){
   if(grip){
     applyHandIK('original',time,grip.position,grip.weight);
     hands[1].children.forEach(part=>{if(part.userData.finger)part.rotation.x=grip.weight*.9;});
+  }
+  if(crabBeat){
+    // Resolve both sockets after the actor's authored pose has settled.
+    actor.updateWorldMatrix(true,true);
+    crab.updateWorldMatrix(true,true);
+    const handSocket=hands[1].localToWorld(gloveHandSocket.set(0,-.075,.09));
+    const clawSocket=crab.localToWorld(gloveCrabSocket.set(0,.22,.02));
+    glove.position.copy(handSocket).lerp(clawSocket,crabBeat.contact);
+    glove.scale.setScalar(1-crabBeat.contact+crabBeat.contact*crabBeat.crabScale);
+    if(previewId==='crab-handshake'){
+      globalThis.__castawayCrab={
+        phase:beatForTime(time),contact:crabBeat.contact,
+        handGap:glove.position.distanceTo(handSocket),
+        clawGap:glove.position.distanceTo(clawSocket),
+        visibleScale:glove.scale.x,
+      };
+    }
   }
 }
 function startOriginalEvent(){
@@ -104,13 +136,13 @@ function event(n){if(originalEvent){originalEvent=null;comedyProps.visible=false
 // Stable inspection links for scene geometry, rigging and comic-beat review.
 // A preview never writes story completion effects or advances the animation clock.
 const previewParams=new URLSearchParams(location.search);
-const previewId=previewParams.get('event');
+const previewId=previewParams.get('event')??previewParams.get('storyPreview');
 if(previewId)window.__castawayFrameInspection=()=>({aspect:camera.aspect,distance:camera.position.distanceTo(orbit.target),projected:sampleStageProjection(camera.aspect,camera.fov,camera.position.clone().sub(orbit.target).toArray(),camera.position.distanceTo(orbit.target))});
 if(previewId){
   const authored=EVENTS.find(item=>item.id===previewId);
   const legacyIndex=stories.findIndex(item=>item[2]===previewId);
   if(authored||legacyIndex>=0){
-    const requested=Number(previewParams.get('time')??0);
+    const requested=Number(previewParams.get('time')??previewParams.get('storyTime')??0);
     seconds=Number.isFinite(requested)?Math.max(0,Math.min(29.999,requested)):0;
     if(authored){
       originalEvent=authored;
@@ -138,5 +170,17 @@ if(k==='dance'){arms[0].rotation.z=-2.5;arms[1].rotation.z=2.5;legs.forEach((l,i
 if(k==='sleep'){actor.rotation.z=-1.4*smooth(seconds/6);actor.position.y=heightAt(stage[0],stage[1])+.12}
 if(k==='depart'){raft.position.x=1.6+.5*Math.sin(phase*Math.PI);raft.position.y=.05+.04*Math.sin(t*2)}
 if(k==='alarm'){arms[0].rotation.z=-1.8;arms[1].rotation.z=1.8;head.rotation.z=.18*Math.sin(t*4)*energy}stagedPose(k,seconds);const expression=expressionAt(k,seconds);const contact=handContact(k,seconds,[actor.position.x,actor.position.y,actor.position.z]);hands.forEach((hand,i)=>{hand.rotation.x=(i===contact.hand?-1:1)*contact.closure*.8;hand.children.forEach(child=>{if(child.userData.finger)child.rotation.x=contact.closure*.95})});eyes.forEach((eye,i)=>{eye.scale.y=Math.max(.09,1-expression.blink*.92);pupils[i].scale.y=eye.scale.y;pupils[i].position.x=(i===0?-.13:.13)+expression.gazeX*.025;pupils[i].position.y=.04+expression.gazeY*.03;brows[i].position.y=.145+expression.shock*.085-expression.focus*.025;brows[i].rotation.z=(i===0?-1:1)*(expression.shock*.36-expression.focus*.2)});head.rotation.x-=expression.shock*.18;legs[0].rotation.x+=secondary.leftLeg;legs[1].rotation.x+=secondary.rightLeg;arms[0].rotation.x+=secondary.leftArm;arms[1].rotation.x+=secondary.rightArm;torso.rotation.x+=secondary.lean;head.rotation.x+=secondary.lookUp;if(secondary.heading!==null&&k!=='run')actor.rotation.y=secondary.heading;if(beat!==previousBeat){if(!paused)foley(k,beat);previousBeat=beat}if(originalEvent&&beat!==previousOriginalBeat){const pitch=comedySound(originalEvent.id,beat);if(pitch&&ctx?.state==='running'&&!paused)cue(pitch);previousOriginalBeat=beat;}if(!originalEvent)playConsequences(k,seconds);else{carriedLog.visible=false;pole.visible=false;float.visible=false;coconut.visible=false;raft.visible=false;paintOriginalEvent(seconds);$('#desc').textContent=originalEvent.phases[beatForTime(seconds)];}
-secondaryRigMotion(t,expression.shock);applyFootIK(sampleFootContacts(k,seconds));if(!originalEvent&&contact.closure>0)applyHandIK(k,seconds,contact.position);if(ctx&&ctx.state==='running'&&!paused){noiseFilter.frequency.value=(dark?180:350)+90*Math.sin(t*.5);noiseGain.gain.value=.65+.2*Math.sin(t*.4);if(!dark&&t-bird>9){bird=t;cue(1200)}}
+secondaryRigMotion(t,expression.shock);applyFootIK(sampleFootContacts(originalEvent?.id==='pier-to-nowhere'?'pier-to-nowhere':k,seconds));if(!originalEvent&&contact.closure>0)applyHandIK(k,seconds,contact.position);if(ctx&&ctx.state==='running'&&!paused){noiseFilter.frequency.value=(dark?180:350)+90*Math.sin(t*.5);noiseGain.gain.value=.65+.2*Math.sin(t*.4);if(!dark&&t-bird>9){bird=t;cue(1200)}}
+// Opt-in read-only inspection for screenshot fixtures: the rendered wrist
+// and the pure choreography target must agree in world coordinates.
+if(previewId&&originalEvent){
+  const staged=sampleOriginalPropStage(originalEvent.id,seconds,actor.position.toArray());
+  const goal=sampleOriginalHandContact(originalEvent.id,seconds,actor.position.toArray(),staged);
+  if(goal){
+    actor.updateWorldMatrix(true,true);
+    const wrist=hands[1].getWorldPosition(new T.Vector3());
+    globalThis.__castawayContact={resource:goal.resource,weight:goal.weight,
+      distance:wrist.distanceTo(new T.Vector3(...goal.position))};
+  }else globalThis.__castawayContact=null;
+}
 $('#bar').style.width=(seconds/duration*100)+'%';orbit.update();renderer.render(scene,camera)}frame();addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;frameTheIsland();renderer.setSize(innerWidth,innerHeight)});
