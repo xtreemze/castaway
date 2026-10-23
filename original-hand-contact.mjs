@@ -1,6 +1,6 @@
 // Pure, time-addressable contact goals for original comic props.
 // Targets are sampled from the same prop stage that owns the displayed meshes.
-import {sampleOriginalPropStage} from './original-prop-stage.mjs';
+import {sampleOriginalPropStage,sampleSundialPebbles} from './original-prop-stage.mjs';
 
 const clamp=x=>Math.max(0,Math.min(1,x));
 const ease=x=>{const v=clamp(x);return v*v*(3-2*v);};
@@ -24,6 +24,22 @@ export function sampleOriginalHandContact(eventId,seconds,root=[0,0,.2],stage=nu
     const target=blend(props.paper.position,props.cork.position,ease((t-12)/1));
     const weight=ease((t-6)/.8)*(1-ease((t-14.1)/.9));
     return weight>0?{resource:t<12.5?'paper':'cork',position:target,weight}:null;
+  }
+  if(eventId==='sundial'&&t>=8&&t<14.24) {
+    const i=Math.min(7,Math.floor((t-8)/.78));
+    const phase=((t-8)/.78)-i;
+    const weight=ease((phase-.03)/.10)*(1-ease((phase-.32)/.14));
+    if(weight>0) {
+      const pebble=sampleSundialPebbles(t,root)[i];
+      return {resource:'pebble-'+i,position:[...pebble.position],weight};
+    }
+  }
+  if(eventId==='pier-to-nowhere'&&t>=24&&t<25.15) {
+    const weight=ease((t-24)/.14)*(1-ease((t-24.85)/.30));
+    if(weight>0&&props.sign.visible) {
+      const [x,y,z]=props.sign.position;
+      return {resource:'sign',position:[x-.02,y+.69,z+.05],weight};
+    }
   }
   return null;
 }
