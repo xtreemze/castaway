@@ -21,4 +21,8 @@ jobs:
           node --check crab-choreography.mjs
           node --test story-director.test.mjs comedy-acting.test.mjs crab-choreography.test.mjs
       - name: Validate Vite runtime syntax
-        run: node --check src/main.js
+        run: |
+          node --check src/main.js
+          node --check src/scene-runtime.js
+          node --check src/scene-worker.js
+          node --check src/audio/ocean-noise-processor.js
