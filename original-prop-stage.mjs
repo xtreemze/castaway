@@ -46,6 +46,15 @@ export function samplePierApproach(seconds) {
   return [x,heightAt(x,z)-.03,z];
 }
 
+// Align the body with its actual walking route, then turn toward the sign.
+// The turn is time-addressable, so a resumed or inspected beat has no history.
+export function samplePierHeading(seconds) {
+  const t=Number.isFinite(seconds)?Math.max(0,Math.min(30,seconds)):0;
+  const travelHeading=Math.atan2(2.65,.65);
+  const faceWalk=ease((t-5)/1.2)*(1-ease((t-20)/3));
+  return mix(.12,travelHeading,faceWalk);
+}
+
 
 export function validateStoryPropCoverage(events=EVENTS) {
   const errors=[];
