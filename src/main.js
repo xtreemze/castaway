@@ -1,5 +1,5 @@
 
-import * as T from 'three';import{EVENTS}from'../story-catalog.mjs';import{sampleOriginalPropStage}from'../original-prop-stage.mjs';import{sampleOriginalHandContact}from'../original-hand-contact.mjs';import{createSupplementaryOriginalMeshes}from'../original-prop-meshes.mjs';import{createCastawayRig}from'../castaway-rig.mjs';import{createWorld,updateShorelineFoam}from'../world-geometry.mjs';import{heightAt,waterHeightAt}from'../world-terrain.mjs';import{comedyPose,comedySound}from'../comedy-acting.mjs';import{newStoryState,chooseStoryEvent,completeStoryEvent,beatForTime}from'../story-director.mjs';import{samplePose,beatAt}from'../animation-director.mjs';import{positionAt,raftVisibility,plankCount}from'../scene-choreography.mjs';import{propPose,applyInventory}from'../prop-choreography.mjs';import{secondaryMotion}from'../secondary-motion.mjs';import{expressionAt}from'../character-expression.mjs';import{handContact}from'../hand-rig.mjs';import{groundContact}from'../ground-contact.mjs';import{sampleFootContacts}from'../foot-contact.mjs';import{OrbitControls}from'three/addons/controls/OrbitControls.js';
+import * as T from 'three';import{EVENTS}from'../story-catalog.mjs';import{sampleOriginalPropStage,sampleSundialPebbles,samplePierApproach}from'../original-prop-stage.mjs';import{sampleOriginalHandContact}from'../original-hand-contact.mjs';import{createSupplementaryOriginalMeshes}from'../original-prop-meshes.mjs';import{createCastawayRig}from'../castaway-rig.mjs';import{createWorld,updateShorelineFoam}from'../world-geometry.mjs';import{heightAt,waterHeightAt}from'../world-terrain.mjs';import{comedyPose,comedySound}from'../comedy-acting.mjs';import{newStoryState,chooseStoryEvent,completeStoryEvent,beatForTime}from'../story-director.mjs';import{samplePose,beatAt}from'../animation-director.mjs';import{positionAt,raftVisibility,plankCount}from'../scene-choreography.mjs';import{propPose,applyInventory}from'../prop-choreography.mjs';import{secondaryMotion}from'../secondary-motion.mjs';import{expressionAt}from'../character-expression.mjs';import{handContact}from'../hand-rig.mjs';import{groundContact}from'../ground-contact.mjs';import{sampleFootContacts}from'../foot-contact.mjs';import{OrbitControls}from'three/addons/controls/OrbitControls.js';
 const scene=new T.Scene();scene.background=new T.Color('#94cfdf');scene.fog=new T.Fog('#94cfdf',26,95);const camera=new T.PerspectiveCamera(40,innerWidth/innerHeight,.1,180);camera.position.set(12,9,17);
 const renderer=new T.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFSoftShadowMap;renderer.outputColorSpace=T.SRGBColorSpace;document.body.prepend(renderer.domElement);
 const orbit=new OrbitControls(camera,renderer.domElement);orbit.enableDamping=true;orbit.minDistance=9;orbit.maxDistance=37;orbit.maxPolarAngle=1.48;orbit.target.set(0,1,0);
@@ -32,6 +32,10 @@ function paintOriginalEvent(time){
   comedyProps.visible=Boolean(originalEvent);
   if(!originalEvent)return;
   const id=originalEvent.id,beat=beatForTime(time),impact=smooth((time-19)/4);
+  if(id==='pier-to-nowhere'){
+    actor.position.set(...samplePierApproach(time));
+    actor.rotation.y=.12;
+  }
   const staged=sampleOriginalPropStage(id,time,actor.position.toArray());
   const meshes={shade,stick,bottle,...supplementalProps};
   for(const [key,mesh] of Object.entries(meshes)){
@@ -42,12 +46,11 @@ function paintOriginalEvent(time){
       mesh.rotation.set(...state.rotation);
     }
   }
+  const pebbleStates=sampleSundialPebbles(id==='sundial'?time:0,actor.position.toArray());
   pebbleMeshes.forEach((p,i)=>{
-    p.visible=staged.pebbles.visible;
-    if(p.visible) {
-      const [x,y,z]=staged.pebbles.position;
-      p.position.set(x+Math.cos(i*Math.PI/4)*.55,y,z+Math.sin(i*Math.PI/4)*.55);
-    }
+    const state=id==='sundial'?pebbleStates[i]:null;
+    p.visible=Boolean(state?.visible);
+    if(p.visible)p.position.set(...state.position);
   });
   // Keep the existing crab/glove choreography until PR #16 is reconciled.
   crab.visible=id==='crab-handshake'||id==='return-to-sender';
@@ -57,7 +60,6 @@ function paintOriginalEvent(time){
   glove.position.set(beat<3?actor.position.x+.4:crab.position.x,beat<3?1.18:crab.position.y+.22,beat<3?actor.position.z+.2:crab.position.z);
   if(id==='crab-handshake'){crab.rotation.y=beat>=3?.5*impact:0;glove.rotation.z=beat>=3?.28*Math.sin(time*8):0;}
   if(id==='sundial')crown.rotation.z+=beat>=3?.22*impact:0;
-  if(id==='pier-to-nowhere'){actor.position.x=1.4;actor.rotation.y=.7;}
   const acting=comedyPose(id,time);
   torso.rotation.x+=acting.lean;head.rotation.z+=acting.headRoll;
   head.rotation.x+=acting.lookUp;arms[1].rotation.x+=acting.arm;actor.rotation.y+=acting.bodyTurn;
