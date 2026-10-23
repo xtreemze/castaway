@@ -1,5 +1,7 @@
 import { chromium } from 'playwright';
 import assert from 'node:assert/strict';
+import {EVENTS} from './story-catalog.mjs';
+import {beatForTime} from './story-director.mjs';
 import { mkdirSync } from 'node:fs';
 mkdirSync('screenshots',{recursive:true});
 async function verifyWebGL(page,label){
@@ -10,6 +12,18 @@ async function verifyWebGL(page,label){
  assert.ok(result.width>0&&result.height>0,label+' canvas has no resolution');
  assert.ok(result.webgl&&!result.contextLost,label+' WebGL unavailable or context lost');
  console.log(label+' WebGL:',result.renderer,result.width+'x'+result.height);
+}
+const crabScene=EVENTS.find(e=>e.id==='crab-handshake');
+async function snapshotCrabBeat(page,seconds,label){
+ const path='http://127.0.0.1:4173/?storyPreview=crab-handshake&storyTime='+seconds;
+ await page.goto(path,{waitUntil:'load'});
+ await page.waitForSelector('canvas',{timeout:20000});
+ const expected=crabScene.phases[beatForTime(seconds)];
+ await page.waitForFunction(text=>document.querySelector('#desc')?.textContent===text,expected,{timeout:10000});
+ assert.match(await page.locator('#name').innerText(),/Diplomatic Relations/);
+ assert.equal(await page.locator('#pause').innerText(),'Resume');
+ await page.waitForTimeout(180); // permit a fully rendered animation frame
+ await page.screenshot({path:'screenshots/crab-'+label+'-'+String(seconds).replace('.','_')+'.png'});
 }
 const browser=await chromium.launch({headless:true,args:['--use-gl=angle','--use-angle=swiftshader','--enable-webgl','--no-sandbox']});
 const page=await browser.newPage({viewport:{width:1280,height:720}});
@@ -47,6 +61,8 @@ assert.equal(await mobile.locator('#pause').innerText(),'Resume');
 await mobile.locator('#night').click();
 assert.equal(await mobile.locator('#night').innerText(),'Day');
 await mobile.screenshot({path:'screenshots/mobile-390x844.png',fullPage:true});
+for(const t of [8,20,25])await snapshotCrabBeat(mobile,t,'mobile');
 await mobile.close();
+for(const t of [2,8,15,19.2,20,25,29])await snapshotCrabBeat(page,t,'desktop');
 assert.deepEqual(errors,[],errors.join('\n'));
 await browser.close();console.log('Browser smoke test passed');
