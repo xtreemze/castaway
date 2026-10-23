@@ -5,11 +5,16 @@ const scene=new T.Scene();scene.background=new T.Color('#94cfdf');scene.fog=new 
 const renderer=new T.WebGLRenderer({antialias:true,canvas});renderer.setPixelRatio(Math.min(pixelRatio,2));renderer.setSize(width,height,false);renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFSoftShadowMap;renderer.outputColorSpace=T.SRGBColorSpace;
 const target = new T.Vector3(0,1,0);
 let radius=Math.hypot(12,8,17),theta=Math.atan2(12,17),phi=Math.acos(8/radius);
+let displayedRadius=radius,displayedTheta=theta,displayedPhi=phi;
 const pointers=new Map();
 const clamp=(v,min,max)=>Math.min(max,Math.max(min,v));
-function updateCamera(){
-  const sin=Math.sin(phi);
-  camera.position.set(target.x+radius*sin*Math.sin(theta),target.y+radius*Math.cos(phi),target.z+radius*sin*Math.cos(theta));
+function updateCamera(immediate=false){
+  const factor=immediate?1:.18;
+  displayedRadius+=(radius-displayedRadius)*factor;
+  displayedTheta+=(theta-displayedTheta)*factor;
+  displayedPhi+=(phi-displayedPhi)*factor;
+  const sin=Math.sin(displayedPhi);
+  camera.position.set(target.x+displayedRadius*sin*Math.sin(displayedTheta),target.y+displayedRadius*Math.cos(displayedPhi),target.z+displayedRadius*sin*Math.cos(displayedTheta));
   camera.lookAt(target);
 }
 function handlePointer({action,id,x,y}){
@@ -30,7 +35,7 @@ function handlePointer({action,id,x,y}){
   }
   pointers.set(id,{x,y});updateCamera();
 }
-updateCamera();
+updateCamera(true);
 scene.add(new T.HemisphereLight('#e2f7ff','#77734c',2));const sun=new T.DirectionalLight('#fff1c9',3.1);sun.position.set(-7,12,9);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.camera.left=-14;sun.shadow.camera.right=14;sun.shadow.camera.top=14;sun.shadow.camera.bottom=-14;scene.add(sun);
 const m=c=>new T.MeshStandardMaterial({color:c,roughness:1,flatShading:true}),sand=m('#efd49a'),wood=m('#805a3b'),bark=m('#967354'),leaf=m('#438551'),leaf2=m('#65a461'),skin=m('#d49d74'),hair=m('#53402e'),shirt=m('#eddfc0'),shorts=m('#987359'),white=m('#fff8e8');
 function obj(g,mt,x=0,y=0,z=0,p=scene){const o=new T.Mesh(g,mt);o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;p.add(o);return o}
@@ -155,7 +160,7 @@ function handle(message){
    renderer.setPixelRatio(Math.min(message.pixelRatio||1,2));renderer.setSize(width,height,false);break;
   case 'next':next();break;
   case 'pause':paused=!paused;ui('pause',paused?'Resume':'Pause');break;
-  case 'reset':radius=Math.hypot(12,8,17);theta=Math.atan2(12,17);phi=Math.acos(8/radius);updateCamera();break;
+  case 'reset':radius=Math.hypot(12,8,17);theta=Math.atan2(12,17);phi=Math.acos(8/radius);updateCamera(true);break;
   case 'night':
    dark=!dark;scene.background.set(dark?'#0d2244':'#94cfdf');scene.fog.color.copy(scene.background);
    sun.intensity=dark?.5:3.1;sun.color.set(dark?'#a6bce8':'#fff1c9');
@@ -183,6 +188,6 @@ if(k==='sleep'){actor.rotation.z=-1.4*smooth(seconds/6);actor.position.y=.22}
 if(k==='depart'){raft.position.x=1.6+.5*Math.sin(phase*Math.PI);raft.position.y=.05+.04*Math.sin(t*2)}
 if(k==='alarm'){arms[0].rotation.z=-1.8;arms[1].rotation.z=1.8;head.rotation.z=.18*Math.sin(t*4)*energy}stagedPose(k,seconds);const expression=expressionAt(k,seconds);const contact=handContact(k,seconds,[actor.position.x,actor.position.y,actor.position.z]);hands.forEach((hand,i)=>{hand.rotation.x=(i===contact.hand?-1:1)*contact.closure*.8;hand.children.forEach(child=>{if(child.userData.finger)child.rotation.x=contact.closure*.95})});eyes.forEach((eye,i)=>{eye.scale.y=Math.max(.09,1-expression.blink*.92);pupils[i].scale.y=eye.scale.y;pupils[i].position.x=(i===0?-.13:.13)+expression.gazeX*.025;pupils[i].position.y=.04+expression.gazeY*.03;brows[i].position.y=.145+expression.shock*.085-expression.focus*.025;brows[i].rotation.z=(i===0?-1:1)*(expression.shock*.36-expression.focus*.2)});head.rotation.x-=expression.shock*.18;legs[0].rotation.x+=secondary.leftLeg;legs[1].rotation.x+=secondary.rightLeg;arms[0].rotation.x+=secondary.leftArm;arms[1].rotation.x+=secondary.rightArm;torso.rotation.x+=secondary.lean;head.rotation.x+=secondary.lookUp;if(secondary.heading!==null&&k!=='run')actor.rotation.y=secondary.heading;if(beat!==previousBeat){if(!paused)foley(k,beat);previousBeat=beat}if(originalEvent&&beat!==previousOriginalBeat){const pitch=comedySound(originalEvent.id,beat);if(pitch&&!paused)cue(pitch);previousOriginalBeat=beat;}if(!originalEvent)playConsequences(k,seconds);else{carriedLog.visible=false;pole.visible=false;float.visible=false;coconut.visible=false;raft.visible=false;paintOriginalEvent(seconds);ui('desc',originalEvent.phases[beatForTime(seconds)]);}
 if(!paused&&t-lastAmbienceSent>=.1){lastAmbienceSent=t;emit({type:'ambience',time:t,dark});if(!dark&&t-bird>9){bird=t;cue(1200)}}
-if(t-lastProgressSent>=.1){lastProgressSent=t;emit({type:'progress',ratio:seconds/duration})}renderer.render(scene,camera)}
+if(t-lastProgressSent>=.1){lastProgressSent=t;emit({type:'progress',ratio:seconds/duration})}updateCamera();renderer.render(scene,camera)}
 frame();return {handle,dispose(){cancel(requestId);renderer.dispose()}};
 }
