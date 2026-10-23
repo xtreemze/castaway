@@ -61,9 +61,9 @@
     .clock span{display:block;color:var(--rust);font-size:.9rem}
     .rulebook{padding-left:1.4rem}
     .rulebook li{padding:.35rem .2rem}
-    details{background:var(--parchment);border:1px solid var(--line);padding:.8rem 1rem;margin-bottom:.7rem}
-    summary{font-weight:bold;cursor:pointer;color:var(--sea)}
-    details p{margin:.65rem 0 0}
+    .qa{background:var(--parchment);border:1px solid var(--line);padding:.8rem 1rem;margin-bottom:.7rem}
+    .qa h3{margin:0 0 .35rem;color:var(--sea);font-size:1.05rem}
+    .qa p{margin:0}
     .end{margin-top:3.5rem;border:5px double var(--sea);padding:1.5rem;text-align:center;background:#fdf5e3}
     .end b{display:block;font-size:1.8rem;color:var(--sea)}
     footer{padding:1.4rem clamp(1rem,6.5vw,4.4rem);background:var(--sea);color:#f8edcd;font-size:.78rem}
@@ -85,8 +85,8 @@
       .cover{min-height:240mm;break-after:page;border-bottom:0;padding-top:40mm}
       .body{padding:0;background:white}
       .chapter{break-before:page;break-inside:auto}
-      .contents{break-after:page}.bottle,.entry,.notice,details{break-inside:avoid;box-shadow:none;transform:none}
-      .entry,.bottle,.contents,details{background:white}
+      .contents{break-after:page}.bottle,.entry,.notice,.qa{break-inside:avoid;box-shadow:none;transform:none}
+      .entry,.bottle,.contents,.qa{background:white}
       a{color:inherit;text-decoration:none}
       footer{background:white;color:black;border-top:1px solid black;padding:1rem 0}
       .clock{break-inside:avoid}
@@ -228,11 +228,11 @@
 
     <section class="chapter" id="questions">
       <p class="folio">Chapter VII · Correspondence</p><h2>Questions from Concerned Relatives</h2>
-      <details><summary>Can he escape?</summary><p>He is working on it. He has become rather attached to the view.</p></details>
-      <details><summary>Is there a winning condition?</summary><p>Not at present. Watching is the point; the castaway supplies the ambition.</p></details>
-      <details><summary>Does the story end?</summary><p>Scenes recur and vary. Larger arcs remain in development; no completed long-form finale is promised.</p></details>
-      <details><summary>Is this the old Johnny Castaway screensaver?</summary><p>No. This is an independent original work inspired by the tradition of wordless screensaver comedy. Its story events, character, geometry, and implementation are original. It is not affiliated with the creators or rights holders of Johnny Castaway.</p></details>
-      <details><summary>Is there anything I can do to help?</summary><p>You may visit the island, inspect the <a href="https://github.com/xtreemze/castaway">source repository</a>, or propose an original scene through the <a href="https://github.com/xtreemze/castaway/issues">issue tracker</a>. The castaway would prefer a boat.</p></details>
+      <div class="qa"><h3>Can he escape?</h3><p>He is working on it. He has become rather attached to the view.</p></div>
+      <div class="qa"><h3>Is there a winning condition?</h3><p>Not at present. Watching is the point; the castaway supplies the ambition.</p></div>
+      <div class="qa"><h3>Does the story end?</h3><p>Scenes recur and vary. Larger arcs remain in development; no completed long-form finale is promised.</p></div>
+      <div class="qa"><h3>Is this the old Johnny Castaway screensaver?</h3><p>No. This is an independent original work inspired by the tradition of wordless screensaver comedy. Its story events, character, geometry, and implementation are original. It is not affiliated with the creators or rights holders of Johnny Castaway.</p></div>
+      <div class="qa"><h3>Is there anything I can do to help?</h3><p>You may visit the island, inspect the <a href="https://github.com/xtreemze/castaway">source repository</a>, or propose an original scene through the <a href="https://github.com/xtreemze/castaway/issues">issue tracker</a>. The castaway would prefer a boat.</p></div>
     </section>
 
     <section class="chapter" id="colophon">
