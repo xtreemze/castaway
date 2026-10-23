@@ -25,7 +25,11 @@ const fixtures=[
   ['return-to-sender',24,'Return to Sender'],
   ['pier-to-nowhere',18,'The Magnificent Pier'],
   ['pier-to-nowhere',26,'The Magnificent Pier'],
+  ['fish',5,'Gone fishing'],
   ['fish',21,'Gone fishing'],
+  ['run',9,'Morning exercise'],
+  ['run',12,'Morning exercise'],
+  ['run',21,'Morning exercise'],
 ];
 async function captureEpisodeFixtures(page,mode){
   for(const [id,time,title] of fixtures){
