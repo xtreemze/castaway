@@ -124,6 +124,13 @@ if(previewScene){
   // Still-frame previews begin at the final composition, without a dolly delay.
   const [previewCamera,previewFocus]=desiredFraming();
   camera.position.copy(previewCamera);orbit.target.copy(previewFocus);orbit.update();
+  // Seek without a page reload so beat-by-beat browser capture stays inexpensive.
+  window.__castawayPreviewSeek=rawTime=>{
+    const time=Number(rawTime);
+    seconds=Number.isFinite(time)?Math.max(0,Math.min(duration-.001,time)):0;
+    paused=true;$('#pause').textContent='Resume';
+    previousOriginalBeat=-1;
+  };
 }
 $('#next').onclick=()=>{if(originalEvent){originalEvent=null;comedyProps.visible=false;foam.forEach((o,i)=>o.position.y=-.45+i*.015);event(index+1)}else if(!startOriginalEvent())event(index+1)};$('#pause').onclick=()=>{paused=!paused;$('#pause').textContent=paused?'Resume':'Pause'};$('#reset').onclick=()=>{automaticFraming=false;camera.position.copy(wideCamera);orbit.target.copy(wideFocus)};$('#night').onclick=()=>{dark=!dark;scene.background.set(dark?'#0d2244':'#94cfdf');scene.fog.color.copy(scene.background);sun.intensity=dark?.5:3.1;sun.color.set(dark?'#a6bce8':'#fff1c9');seaMat.color.set(dark?'#153f67':'#207fa7');$('#night').textContent=dark?'Day':'Night'};
 $('#sound').onclick=async()=>{if(ctx){if(ctx.state==='suspended')await ctx.resume();else await ctx.suspend();$('#sound').textContent=ctx.state==='running'?'Sound on':'Sound off';return}ctx=new AudioContext();master=ctx.createGain();master.gain.value=.2;master.connect(ctx.destination);const b=ctx.createBuffer(1,ctx.sampleRate*2,ctx.sampleRate),a=b.getChannelData(0);let previous=0;for(let i=0;i<a.length;i++){previous=previous*.985+(Math.random()*2-1)*.015;a[i]=previous}const src=ctx.createBufferSource();src.buffer=b;src.loop=true;noiseFilter=ctx.createBiquadFilter();noiseFilter.type='lowpass';noiseFilter.frequency.value=400;noiseGain=ctx.createGain();noiseGain.gain.value=.7;src.connect(noiseFilter).connect(noiseGain).connect(master);src.start();$('#sound').textContent='Sound on';cue()};
