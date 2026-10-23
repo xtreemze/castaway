@@ -22,7 +22,7 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
       - name: Existing choreography tests
-        run: node --test animation-director.test.mjs scene-choreography.test.mjs prop-choreography.test.mjs secondary-motion.test.mjs character-expression.test.mjs hand-rig.test.mjs ground-contact.test.mjs world-terrain.test.mjs rig-kinematics.test.mjs castaway-rig.test.mjs original-prop-stage.test.mjs original-hand-contact.test.mjs foot-contact.test.mjs
+        run: node --test animation-director.test.mjs scene-choreography.test.mjs prop-choreography.test.mjs secondary-motion.test.mjs character-expression.test.mjs hand-rig.test.mjs ground-contact.test.mjs world-terrain.test.mjs rig-kinematics.test.mjs castaway-rig.test.mjs original-prop-stage.test.mjs original-hand-contact.test.mjs foot-contact.test.mjs camera-framing.test.mjs
       - name: Vite+ narrative tests
         run: npx vp test
       - name: Vite+ production build
