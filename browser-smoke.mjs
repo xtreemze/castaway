@@ -73,5 +73,9 @@ await mobile.screenshot({path:'screenshots/mobile-390x844.png',fullPage:true});
 for(const t of [8,20,25])await snapshotCrabBeat(mobile,t,'mobile');
 await mobile.close();
 for(const t of [2,8,15,19.2,20,25,29])await snapshotCrabBeat(page,t,'desktop');
+// Exercise the same scene runtime without worker canvas transfer.
+await page.goto('http://127.0.0.1:4173/?renderThread=main',{waitUntil:'load'});
+await verifyWebGL(page,'forced-main-thread fallback');
+assert.equal(await page.locator('#name').innerText()!=='',true);
 assert.deepEqual(errors,[],errors.join('\n'));
 await browser.close();console.log('Browser smoke test passed');
