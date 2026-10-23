@@ -2,7 +2,16 @@
 import * as T from 'three';import{EVENTS}from'../story-catalog.mjs';import{crabBlocking}from'../crab-choreography.mjs';import{comedyPose,comedySound}from'../comedy-acting.mjs';import{newStoryState,chooseStoryEvent,completeStoryEvent,beatForTime}from'../story-director.mjs';import{samplePose,beatAt}from'../animation-director.mjs';import{positionAt,raftVisibility,plankCount}from'../scene-choreography.mjs';import{propPose,applyInventory}from'../prop-choreography.mjs';import{secondaryMotion}from'../secondary-motion.mjs';import{expressionAt}from'../character-expression.mjs';import{handContact}from'../hand-rig.mjs';import{groundContact}from'../ground-contact.mjs';import{OrbitControls}from'three/addons/controls/OrbitControls.js';
 const scene=new T.Scene();scene.background=new T.Color('#94cfdf');scene.fog=new T.Fog('#94cfdf',26,95);const camera=new T.PerspectiveCamera(40,innerWidth/innerHeight,.1,180);camera.position.set(12,9,17);
 const renderer=new T.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFSoftShadowMap;renderer.outputColorSpace=T.SRGBColorSpace;document.body.prepend(renderer.domElement);
-const orbit=new OrbitControls(camera,renderer.domElement);orbit.enableDamping=true;orbit.minDistance=9;orbit.maxDistance=37;orbit.maxPolarAngle=1.48;orbit.target.set(0,1,0);
+const orbit=new OrbitControls(camera,renderer.domElement);orbit.enableDamping=true;orbit.minDistance=6;orbit.maxDistance=37;orbit.maxPolarAngle=1.48;orbit.target.set(0,1,0);
+const wideCamera=new T.Vector3(12,9,17),wideFocus=new T.Vector3(0,1,0);
+const crabLandscapeCamera=new T.Vector3(4.8,3.6,7.1),crabLandscapeFocus=new T.Vector3(.85,1.1,.45);
+const crabPortraitCamera=new T.Vector3(6.8,4.4,11.5),crabPortraitFocus=new T.Vector3(1.05,1,.55);
+let automaticFraming=true;
+orbit.addEventListener('start',()=>{automaticFraming=false});
+function desiredFraming(){
+  if(originalEvent?.id!=='crab-handshake')return [wideCamera,wideFocus];
+  return innerWidth/innerHeight<.75?[crabPortraitCamera,crabPortraitFocus]:[crabLandscapeCamera,crabLandscapeFocus];
+}
 scene.add(new T.HemisphereLight('#e2f7ff','#77734c',2));const sun=new T.DirectionalLight('#fff1c9',3.1);sun.position.set(-7,12,9);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.camera.left=-14;sun.shadow.camera.right=14;sun.shadow.camera.top=14;sun.shadow.camera.bottom=-14;scene.add(sun);
 const m=c=>new T.MeshStandardMaterial({color:c,roughness:1,flatShading:true}),sand=m('#efd49a'),wood=m('#805a3b'),bark=m('#967354'),leaf=m('#438551'),leaf2=m('#65a461'),skin=m('#d49d74'),hair=m('#53402e'),shirt=m('#eddfc0'),shorts=m('#987359'),white=m('#fff8e8');
 function obj(g,mt,x=0,y=0,z=0,p=scene){const o=new T.Mesh(g,mt);o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;p.add(o);return o}
@@ -25,7 +34,7 @@ try{
   const value=JSON.parse(localStorage.getItem('castaway-original-story-v1')||'null');
   storyState=value&&Number.isInteger(value.seed)&&Array.isArray(value.flags)&&Array.isArray(value.played)&&Number.isInteger(value.episode)?value:newStoryState();
 }catch{storyState=newStoryState()}
-let originalEvent=null,previousOriginalBeat=-1;
+let originalEvent=null,previousOriginalBeat=-1,previewOnly=false;
 const comedyProps=new T.Group();comedyProps.visible=false;scene.add(comedyProps);
 const shade=obj(new T.ConeGeometry(.78,.1,5),leaf,0,2.45,0,comedyProps);
 const stick=obj(new T.CylinderGeometry(.035,.045,.8,6),bark,0,.5,0,comedyProps);
@@ -69,7 +78,7 @@ function paintOriginalEvent(time){
 function startOriginalEvent(){
   const selected=chooseStoryEvent(storyState);
   if(!selected)return false;
-  originalEvent=selected;
+  originalEvent=selected;previewOnly=false;
   seconds=0;previousBeat=-1;previousOriginalBeat=-1;
   $('#name').textContent='Day '+narrative.day+' · '+selected.title;
   $('#desc').textContent=selected.phases[0];
@@ -78,9 +87,11 @@ function startOriginalEvent(){
 }
 function finishOriginalEvent(){
   if(!originalEvent)return;
-  storyState=completeStoryEvent(storyState,originalEvent);
-  try{localStorage.setItem('castaway-original-story-v1',JSON.stringify(storyState))}catch{}
-  originalEvent=null;comedyProps.visible=false;
+  if(!previewOnly){
+    storyState=completeStoryEvent(storyState,originalEvent);
+    try{localStorage.setItem('castaway-original-story-v1',JSON.stringify(storyState))}catch{}
+  }
+  originalEvent=null;previewOnly=false;comedyProps.visible=false;
   foam.forEach((o,i)=>o.position.y=-.45+i*.015);
 }
 const stories=[['A quiet day','He surveys his kingdom of sand.','idle','A kingdom of one.'],['Gone fishing','Patience is an admirable quality.','fish','The fish have other plans.'],['Coconut lunch','Lunch is more complicated than expected.','coconut','Lunch fights back.'],['Morning exercise','One lap is a considerable expedition.','run','Around the world in eight seconds.'],['A distant ship','He waves with unreasonable confidence.','wave','Perhaps they saw him.'],['A magnificent invention','The castaway works on a glorious plan.','build','Progress is relative.'],['The raft','Four logs and a limitless imagination.','raft','Nothing can possibly go wrong.'],['Rain dance','The weather does not cooperate.','dance','The clouds seem unimpressed.'],['Afternoon nap','There is time to dream.','sleep','He dreams of dry socks.'],['Departure','The greatest journey begins.','depart','It ends slightly sooner.'],['Something in the water','Perhaps swimming is a bad idea.','alarm','There are other options.'],['Still here','The tide brings another day.','idle','There is always tomorrow.']];
@@ -103,15 +114,25 @@ function event(n){if(originalEvent){originalEvent=null;comedyProps.visible=false
 const previewQuery=new URLSearchParams(location.search);
 const previewScene=EVENTS.find(scene=>scene.id===previewQuery.get('storyPreview'));
 if(previewScene){
-  originalEvent=previewScene;
+  originalEvent=previewScene;previewOnly=true;
   const previewTime=Number(previewQuery.get('storyTime'));
   seconds=Number.isFinite(previewTime)?Math.max(0,Math.min(duration-.001,previewTime)):0;
   paused=true;
   $('#pause').textContent='Resume';
   $('#name').textContent='Preview · '+previewScene.title;
   $('#sub').textContent=previewScene.accessibilitySummary;
+  // Still-frame previews begin at the final composition, without a dolly delay.
+  const [previewCamera,previewFocus]=desiredFraming();
+  camera.position.copy(previewCamera);orbit.target.copy(previewFocus);orbit.update();
+  // Seek without a page reload so beat-by-beat browser capture stays inexpensive.
+  window.__castawayPreviewSeek=rawTime=>{
+    const time=Number(rawTime);
+    seconds=Number.isFinite(time)?Math.max(0,Math.min(duration-.001,time)):0;
+    paused=true;$('#pause').textContent='Resume';
+    previousOriginalBeat=-1;
+  };
 }
-$('#next').onclick=()=>{if(originalEvent){originalEvent=null;comedyProps.visible=false;foam.forEach((o,i)=>o.position.y=-.45+i*.015);event(index+1)}else if(!startOriginalEvent())event(index+1)};$('#pause').onclick=()=>{paused=!paused;$('#pause').textContent=paused?'Resume':'Pause'};$('#reset').onclick=()=>{camera.position.set(12,9,17);orbit.target.set(0,1,0)};$('#night').onclick=()=>{dark=!dark;scene.background.set(dark?'#0d2244':'#94cfdf');scene.fog.color.copy(scene.background);sun.intensity=dark?.5:3.1;sun.color.set(dark?'#a6bce8':'#fff1c9');seaMat.color.set(dark?'#153f67':'#207fa7');$('#night').textContent=dark?'Day':'Night'};
+$('#next').onclick=()=>{if(originalEvent){originalEvent=null;comedyProps.visible=false;foam.forEach((o,i)=>o.position.y=-.45+i*.015);event(index+1)}else if(!startOriginalEvent())event(index+1)};$('#pause').onclick=()=>{paused=!paused;$('#pause').textContent=paused?'Resume':'Pause'};$('#reset').onclick=()=>{automaticFraming=false;camera.position.copy(wideCamera);orbit.target.copy(wideFocus)};$('#night').onclick=()=>{dark=!dark;scene.background.set(dark?'#0d2244':'#94cfdf');scene.fog.color.copy(scene.background);sun.intensity=dark?.5:3.1;sun.color.set(dark?'#a6bce8':'#fff1c9');seaMat.color.set(dark?'#153f67':'#207fa7');$('#night').textContent=dark?'Day':'Night'};
 $('#sound').onclick=async()=>{if(ctx){if(ctx.state==='suspended')await ctx.resume();else await ctx.suspend();$('#sound').textContent=ctx.state==='running'?'Sound on':'Sound off';return}ctx=new AudioContext();master=ctx.createGain();master.gain.value=.2;master.connect(ctx.destination);const b=ctx.createBuffer(1,ctx.sampleRate*2,ctx.sampleRate),a=b.getChannelData(0);let previous=0;for(let i=0;i<a.length;i++){previous=previous*.985+(Math.random()*2-1)*.015;a[i]=previous}const src=ctx.createBufferSource();src.buffer=b;src.loop=true;noiseFilter=ctx.createBiquadFilter();noiseFilter.type='lowpass';noiseFilter.frequency.value=400;noiseGain=ctx.createGain();noiseGain.gain.value=.7;src.connect(noiseFilter).connect(noiseGain).connect(master);src.start();$('#sound').textContent='Sound on';cue()};
 addEventListener('keydown',e=>{if(e.code==='Space'){e.preventDefault();$('#pause').click()}else if(e.code==='ArrowRight')$('#next').click()});
 const clock=new T.Clock();let bird=0;function frame(){requestAnimationFrame(frame);const dt=Math.min(clock.getDelta(),.05);if(!paused){total+=dt;seconds+=dt;if(seconds>=duration){if(originalEvent){finishOriginalEvent();seconds=0;event(chooseNext())}else{resolveEvent();seconds=0;if(!startOriginalEvent())event(chooseNext())}}}const t=total,k=originalEvent?'idle':stories[index][2],phase=seconds/duration,beat=beats.findIndex(b=>seconds>=b.start&&seconds<b.end),energy=beat===0?.25:beat===1?.5:beat===2?1:beat===3?1.4:.15,beatTime=seconds-(beats[Math.max(0,beat)]?.start||0);
@@ -126,4 +147,9 @@ if(k==='sleep'){actor.rotation.z=-1.4*smooth(seconds/6);actor.position.y=.22}
 if(k==='depart'){raft.position.x=1.6+.5*Math.sin(phase*Math.PI);raft.position.y=.05+.04*Math.sin(t*2)}
 if(k==='alarm'){arms[0].rotation.z=-1.8;arms[1].rotation.z=1.8;head.rotation.z=.18*Math.sin(t*4)*energy}stagedPose(k,seconds);const expression=expressionAt(k,seconds);const contact=handContact(k,seconds,[actor.position.x,actor.position.y,actor.position.z]);hands.forEach((hand,i)=>{hand.rotation.x=(i===contact.hand?-1:1)*contact.closure*.8;hand.children.forEach(child=>{if(child.userData.finger)child.rotation.x=contact.closure*.95})});eyes.forEach((eye,i)=>{eye.scale.y=Math.max(.09,1-expression.blink*.92);pupils[i].scale.y=eye.scale.y;pupils[i].position.x=(i===0?-.13:.13)+expression.gazeX*.025;pupils[i].position.y=.04+expression.gazeY*.03;brows[i].position.y=.145+expression.shock*.085-expression.focus*.025;brows[i].rotation.z=(i===0?-1:1)*(expression.shock*.36-expression.focus*.2)});head.rotation.x-=expression.shock*.18;legs[0].rotation.x+=secondary.leftLeg;legs[1].rotation.x+=secondary.rightLeg;arms[0].rotation.x+=secondary.leftArm;arms[1].rotation.x+=secondary.rightArm;torso.rotation.x+=secondary.lean;head.rotation.x+=secondary.lookUp;if(secondary.heading!==null&&k!=='run')actor.rotation.y=secondary.heading;if(beat!==previousBeat){if(!paused)foley(k,beat);previousBeat=beat}if(originalEvent&&beat!==previousOriginalBeat){const pitch=comedySound(originalEvent.id,beat);if(pitch&&ctx?.state==='running'&&!paused)cue(pitch);previousOriginalBeat=beat;}if(!originalEvent)playConsequences(k,seconds);else{carriedLog.visible=false;pole.visible=false;float.visible=false;coconut.visible=false;raft.visible=false;paintOriginalEvent(seconds);$('#desc').textContent=originalEvent.phases[beatForTime(seconds)];}
 if(ctx&&ctx.state==='running'&&!paused){noiseFilter.frequency.value=(dark?180:350)+90*Math.sin(t*.5);noiseGain.gain.value=.65+.2*Math.sin(t*.4);if(!dark&&t-bird>9){bird=t;cue(1200)}}
-$('#bar').style.width=(seconds/duration*100)+'%';orbit.update();renderer.render(scene,camera)}frame();addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+$('#bar').style.width=(seconds/duration*100)+'%';
+if(automaticFraming){
+  const [position,focus]=desiredFraming(),alpha=1-Math.exp(-dt*1.8);
+  camera.position.lerp(position,alpha);orbit.target.lerp(focus,alpha);
+}
+orbit.update();renderer.render(scene,camera)}frame();addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
