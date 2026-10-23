@@ -5,13 +5,22 @@ import {beatForTime} from './story-director.mjs';
 import { mkdirSync } from 'node:fs';
 mkdirSync('screenshots',{recursive:true});
 async function verifyWebGL(page,label){
+ await page.waitForFunction(()=>['worker','main'].includes(document.documentElement.dataset.castawayRenderer),null,{timeout:20000});
  const result=await page.locator('canvas').evaluate(canvas=>{
-  const gl=canvas.getContext('webgl2')||canvas.getContext('webgl');
-  return {width:canvas.width,height:canvas.height,webgl:!!gl,renderer:gl?.getParameter(gl.RENDERER)||null,contextLost:gl?.isContextLost()??true};
+  const backend=document.documentElement.dataset.castawayRenderer;
+  let gl=null,transferred=false;
+  try{gl=canvas.getContext('webgl2')||canvas.getContext('webgl')}
+  catch(error){transferred=error.name==='InvalidStateError'}
+  return {backend,width:canvas.width,height:canvas.height,
+    webgl:!!gl,contextLost:gl?.isContextLost()??false,transferred};
  });
  assert.ok(result.width>0&&result.height>0,label+' canvas has no resolution');
- assert.ok(result.webgl&&!result.contextLost,label+' WebGL unavailable or context lost');
- console.log(label+' WebGL:',result.renderer,result.width+'x'+result.height);
+ if(result.backend==='worker'){
+  assert.ok(result.transferred,label+' worker must own the transferred canvas');
+ }else{
+  assert.ok(result.webgl&&!result.contextLost,label+' main-thread WebGL unavailable or lost');
+ }
+ console.log(label+' renderer:',result.backend,result.width+'x'+result.height);
 }
 const crabScene=EVENTS.find(e=>e.id==='crab-handshake');
 async function snapshotCrabBeat(page,seconds,label){
@@ -42,9 +51,9 @@ assert.equal(await page.locator('#name').innerText()!=='',true);
 await page.locator('#next').click();
 assert.match(await page.locator('#name').innerText(),/Day/);
 await page.locator('#pause').click();
-assert.equal(await page.locator('#pause').innerText(),'Resume');
+await page.waitForFunction(()=>document.querySelector('#pause')?.textContent==='Resume');
 await page.locator('#night').click();
-assert.equal(await page.locator('#night').innerText(),'Day');
+await page.waitForFunction(()=>document.querySelector('#night')?.textContent==='Day');
 await page.screenshot({path:'screenshots/desktop-1280x720.png',fullPage:true});
 const mobile=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:1,isMobile:true,hasTouch:true});
 mobile.on('pageerror',e=>errors.push('mobile: '+e.message));
@@ -57,12 +66,16 @@ await verifyWebGL(mobile,'mobile');
 await mobile.locator('#next').click();
 assert.match(await mobile.locator('#name').innerText(),/Day/);
 await mobile.locator('#pause').click();
-assert.equal(await mobile.locator('#pause').innerText(),'Resume');
+await mobile.waitForFunction(()=>document.querySelector('#pause')?.textContent==='Resume');
 await mobile.locator('#night').click();
-assert.equal(await mobile.locator('#night').innerText(),'Day');
+await mobile.waitForFunction(()=>document.querySelector('#night')?.textContent==='Day');
 await mobile.screenshot({path:'screenshots/mobile-390x844.png',fullPage:true});
 for(const t of [8,20,25])await snapshotCrabBeat(mobile,t,'mobile');
 await mobile.close();
 for(const t of [2,8,15,19.2,20,25,29])await snapshotCrabBeat(page,t,'desktop');
+// Exercise the same scene runtime without worker canvas transfer.
+await page.goto('http://127.0.0.1:4173/?renderThread=main',{waitUntil:'load'});
+await verifyWebGL(page,'forced-main-thread fallback');
+assert.equal(await page.locator('#name').innerText()!=='',true);
 assert.deepEqual(errors,[],errors.join('\n'));
 await browser.close();console.log('Browser smoke test passed');

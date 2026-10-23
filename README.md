@@ -160,8 +160,18 @@ The site is published using **GitHub Pages**. The public entry point is [xtreemz
 - `story-catalog.mjs`: approved original episode definitions, props, prerequisites, consequences, six causal phases, and accessible scene summaries.
 - `story-director.mjs`: deterministic scene selection, recently played history, progression flags, and the 30-second story clock.
 - `comedy-acting.mjs` and related animation modules: per-beat performances and motion.
-- `src/main.js`: the live Three.js scene, stage and props, camera, input controls, rendering, and story integration.
+- `src/main.js`: the deliberately small DOM shell—input capture, accessibility labels, local persistence and user-activated audio.
+- `src/scene-worker.js` and `src/scene-runtime.js`: OffscreenCanvas WebGL worker and its reusable fallback runtime; world construction, characters, story timing, scene animation and GPU submissions live here.
+- `src/audio/ocean-noise-processor.js`: ocean-noise synthesis on the AudioWorklet rendering thread; the host retains AudioContext setup, cues, and routing.
 - `.github/workflows/pages.yml`: GitHub Pages workflow.
+
+### Rendering without occupying the visitor's main thread
+
+When supported, the island transfers its canvas to a dedicated Web Worker via `transferControlToOffscreen()`. The worker owns the entire Three.js scene and animation loop; the main thread only forwards pointer/resize/control messages and applies concise story labels and progress updates. Pointer movement is batched and scene-to-DOM messages are deduplicated. The ocean surface is displaced by the vertex shader rather than rewriting 3,721 vertices and recomputing their normals in JavaScript every frame.
+
+Audio is separate from the graphics worker: after an explicit **Enable sound** interaction, an AudioWorklet synthesizes surf noise on the browser's audio rendering thread. Its short comic cue scheduling remains with the AudioContext host. If AudioWorklet is unavailable, a precomputed looping buffer is used. If offscreen WebGL workers are unavailable or cannot initialize, the same runtime runs on the main thread; this avoids excluding older browsers and devices.
+
+Workers cannot use the DOM, localStorage, or audio activation APIs. The host is responsible for these browser-owned operations. Because workers share the same CPU/GPU budget as the rest of the page, offloading improves responsiveness but does not guarantee more frames per second. Rendering remains resolution-capped at a device-pixel ratio of 2.
 
 Each new episode should have an original premise, a readable setup, anticipation, escalation or misunderstanding, an unmistakable payoff, aftermath, and recovery. Give it a unique ID, six meaningful phases, accurate prerequisites and effects, accessible summary, and a complete return to a stable island state. Episodes in the current registry use a 30-second duration.
 
