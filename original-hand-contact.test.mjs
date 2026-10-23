@@ -14,7 +14,7 @@ test('original grasp targets are deterministic, finite and release at the payoff
       const contact=sampleOriginalHandContact(e.id,t,root,staged);
       assert.deepEqual(contact,sampleOriginalHandContact(e.id,t,root,staged));
       if(!contact)continue;
-      assert.ok(['shade','paper','cork'].includes(contact.resource));
+      assert.ok(['shade','paper','cork','sign'].includes(contact.resource)||/^pebble-[0-7]$/.test(contact.resource));
       assert.ok(contact.weight>0&&contact.weight<=1);
       assert.ok(contact.position.every(Number.isFinite));
     }
