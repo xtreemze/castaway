@@ -33,6 +33,7 @@ const pebbleMeshes=Array.from({length:8},(_,i)=>ball(.065,wood,Math.cos(i*Math.P
 const crab=new T.Group();comedyProps.add(crab);crab.position.set(.8,.12,.7);
 ball(.18,m('#cf654a'),0,.06,0,crab);for(let side of [-1,1])for(let i=0;i<3;i++)rod([side*.1,.05,i*.09-.1],[side*.31,-.05,i*.14-.2],.025,m('#bf694b'),crab);
 const glove=obj(new T.BoxGeometry(.2,.055,.18),leaf2,0,.2,0,comedyProps);
+const gloveHandSocket=new T.Vector3(),gloveCrabSocket=new T.Vector3();
 const bottle=obj(new T.CylinderGeometry(.085,.1,.37,7),new T.MeshStandardMaterial({color:'#8fc8b6',transparent:true,opacity:.8}),0,.2,0,comedyProps);
 function paintOriginalEvent(time){
   comedyProps.visible=Boolean(originalEvent);
@@ -47,14 +48,23 @@ function paintOriginalEvent(time){
   shade.rotation.z=beat>=3?-.45*impact:0;
   stick.position.set(.25,.4,.4);
   pebbleMeshes.forEach((p,i)=>p.position.set(.25+Math.cos(i*Math.PI/4)*.55,.045,.4+Math.sin(i*Math.PI/4)*.55));
-  if(id!=='crab-handshake'){crab.position.set(.8,.12,.7);glove.position.set(0,.2,0)}
+  if(id!=='crab-handshake'){crab.position.set(.8,.12,.7);glove.position.set(0,.2,0);glove.scale.setScalar(1)}
   bottle.position.set(beat<3?actor.position.x+.6:1.4+Math.sin(time*1.5)*.3,beat<3?.25:-.3,1.2);
   if(id==='portable-shade'){shade.position.y=2.5+.08*Math.sin(time*1.6);shade.rotation.y=beat>=3?Math.PI*impact:0;}
-  if(id==='crab-handshake'){const b=crabBlocking(time);crab.position.set(b.crabX,.12,b.crabZ);crab.scale.setScalar(b.crabScale);glove.position.set(b.gloveX+actor.position.x*(1-b.contact),b.gloveY,b.gloveZ+actor.position.z*(1-b.contact));glove.rotation.z=b.gloveAngle;torso.rotation.x+=.42*b.handBend+.18*b.bow;arms[1].rotation.x-=1.2*b.handReach;head.rotation.x+=.22*b.recognition;head.rotation.z-=.2*b.recognition;}else{crab.scale.setScalar(1)}
+  let crabContact=0,crabExitScale=1;
+  if(id==='crab-handshake'){const b=crabBlocking(time);crabContact=b.contact;crabExitScale=b.crabScale;crab.position.set(b.crabX,.12,b.crabZ);crab.scale.setScalar(b.crabScale);glove.rotation.z=b.gloveAngle;torso.rotation.x+=.42*b.handBend+.18*b.bow;arms[1].rotation.x-=1.2*b.handReach;head.rotation.x+=.22*b.recognition;head.rotation.z-=.2*b.recognition;}else{crab.scale.setScalar(1)}
   if(id==='sundial'){crown.rotation.z+=beat>=3?.22*impact:0;}
   if(id==='return-to-sender'){bottle.rotation.z=beat>=3?.18*Math.sin(time*5):0;}
   if(id==='pier-to-nowhere'){actor.position.x=1.4;actor.rotation.y=.7;foam.forEach((o,i)=>o.position.y=-.45+i*.015-(beat>=3?.10*impact:0));}
   const acting=comedyPose(id,time);torso.rotation.x+=acting.lean;head.rotation.z+=acting.headRoll;head.rotation.x+=acting.lookUp;arms[1].rotation.x+=acting.arm;actor.rotation.y+=acting.bodyTurn;
+  if(id==='crab-handshake'){
+    // Drive the glove from animated attachment sockets, then hand it to the crab.
+    actor.updateMatrixWorld(true);crab.updateMatrixWorld(true);
+    const handSocket=hands[1].localToWorld(gloveHandSocket.set(0,-.075,.09));
+    const clawSocket=crab.localToWorld(gloveCrabSocket.set(0,.22,.02));
+    glove.position.copy(handSocket).lerp(clawSocket,crabContact);
+    glove.scale.setScalar(1-crabContact+crabContact*crabExitScale);
+  }
 }
 function startOriginalEvent(){
   const selected=chooseStoryEvent(storyState);
