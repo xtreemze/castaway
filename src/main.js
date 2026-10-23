@@ -92,6 +92,14 @@ function paintOriginalEvent(time){
     const clawSocket=crab.localToWorld(gloveCrabSocket.set(0,.22,.02));
     glove.position.copy(handSocket).lerp(clawSocket,crabBeat.contact);
     glove.scale.setScalar(1-crabBeat.contact+crabBeat.contact*crabBeat.crabScale);
+    if(previewId==='crab-handshake'){
+      globalThis.__castawayCrab={
+        phase:beatForTime(time),contact:crabBeat.contact,
+        handGap:glove.position.distanceTo(handSocket),
+        clawGap:glove.position.distanceTo(clawSocket),
+        visibleScale:glove.scale.x,
+      };
+    }
   }
 }
 function startOriginalEvent(){
@@ -128,13 +136,13 @@ function event(n){if(originalEvent){originalEvent=null;comedyProps.visible=false
 // Stable inspection links for scene geometry, rigging and comic-beat review.
 // A preview never writes story completion effects or advances the animation clock.
 const previewParams=new URLSearchParams(location.search);
-const previewId=previewParams.get('event');
+const previewId=previewParams.get('event')??previewParams.get('storyPreview');
 if(previewId)window.__castawayFrameInspection=()=>({aspect:camera.aspect,distance:camera.position.distanceTo(orbit.target),projected:sampleStageProjection(camera.aspect,camera.fov,camera.position.clone().sub(orbit.target).toArray(),camera.position.distanceTo(orbit.target))});
 if(previewId){
   const authored=EVENTS.find(item=>item.id===previewId);
   const legacyIndex=stories.findIndex(item=>item[2]===previewId);
   if(authored||legacyIndex>=0){
-    const requested=Number(previewParams.get('time')??0);
+    const requested=Number(previewParams.get('time')??previewParams.get('storyTime')??0);
     seconds=Number.isFinite(requested)?Math.max(0,Math.min(29.999,requested)):0;
     if(authored){
       originalEvent=authored;
