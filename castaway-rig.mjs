@@ -108,7 +108,8 @@ export function createCastawayRig({T,scene,obj,ball,rod,m,skin,hair,shirt,shorts
       knee.updateWorldMatrix(true,true);
       // Foot tops stay roughly horizontal during stance, regardless of knee flexion.
       if(foot.planted) {
-        const counter=ankle.parent.getWorldQuaternion(new T.Quaternion()).invert();
+        const counter=ankle.parent.getWorldQuaternion(new T.Quaternion()).invert()
+          .multiply(actor.getWorldQuaternion(new T.Quaternion()));
         ankle.quaternion.slerp(counter,weight);
       }
       out.push(solution);
