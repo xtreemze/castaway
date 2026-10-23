@@ -84,7 +84,7 @@ export function createCastawayRig({T,scene,obj,ball,rod,m,skin,hair,shirt,shorts
   function applyFootIK(contacts) {
     const weight=Number.isFinite(contacts?.weight)?Math.max(0,Math.min(1,contacts.weight)):0;
     // Slight knee compression creates reachable lateral steps without stretching bone lengths.
-    pelvis.position.y=-.105*weight;
+    pelvis.position.y=weight>0?-.105*weight:0;
     if(weight<=0)return [];
     actor.updateWorldMatrix(true,true);
     const out=[];
