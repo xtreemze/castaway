@@ -1,11 +1,25 @@
 
-import * as T from 'three';import{createWorld,updateShorelineFoam}from'../world-geometry.mjs';import{heightAt,waterHeightAt}from'../world-terrain.mjs';import{stageFitDistance}from'../camera-framing.mjs';import{EVENTS}from'../story-catalog.mjs';import{crabBlocking}from'../crab-choreography.mjs';import{comedyPose,comedySound}from'../comedy-acting.mjs';import{newStoryState,chooseStoryEvent,completeStoryEvent,beatForTime}from'../story-director.mjs';import{samplePose,beatAt}from'../animation-director.mjs';import{positionAt,raftVisibility,plankCount}from'../scene-choreography.mjs';import{propPose,applyInventory}from'../prop-choreography.mjs';import{secondaryMotion}from'../secondary-motion.mjs';import{expressionAt}from'../character-expression.mjs';import{handContact}from'../hand-rig.mjs';import{groundContact}from'../ground-contact.mjs';
+import * as T from 'three';import{createWorld,updateShorelineFoam}from'../world-geometry.mjs';import{heightAt,waterHeightAt}from'../world-terrain.mjs';import{stageFitDistance,sampleStageProjection}from'../camera-framing.mjs';import{EVENTS}from'../story-catalog.mjs';import{crabBlocking}from'../crab-choreography.mjs';import{comedyPose,comedySound}from'../comedy-acting.mjs';import{newStoryState,chooseStoryEvent,completeStoryEvent,beatForTime}from'../story-director.mjs';import{samplePose,beatAt}from'../animation-director.mjs';import{positionAt,raftVisibility,plankCount}from'../scene-choreography.mjs';import{propPose,applyInventory}from'../prop-choreography.mjs';import{secondaryMotion}from'../secondary-motion.mjs';import{expressionAt}from'../character-expression.mjs';import{handContact}from'../hand-rig.mjs';import{groundContact}from'../ground-contact.mjs';
 export function startScene({ canvas, emit, initialStoryState, initialNarrativeState, preview, width, height, pixelRatio = 1 }) {
 const scene=new T.Scene();scene.background=new T.Color('#94cfdf');scene.fog=new T.Fog('#94cfdf',26,95);const camera=new T.PerspectiveCamera(40,width/height,.1,180);camera.position.set(12,9,17);
 const renderer=new T.WebGLRenderer({antialias:true,canvas});renderer.setPixelRatio(Math.min(pixelRatio,2));renderer.setSize(width,height,false);renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFSoftShadowMap;renderer.outputColorSpace=T.SRGBColorSpace;
 const target = new T.Vector3(0,1,0);
-let radius=Math.hypot(12,8,17),theta=Math.atan2(12,17),phi=Math.acos(8/radius);
+const baseRadius=Math.hypot(12,8,17);
+let radius=baseRadius,theta=Math.atan2(12,17),phi=Math.acos(8/radius);
 let displayedRadius=radius,displayedTheta=theta,displayedPhi=phi;
+let frameFitRadius=baseRadius;
+function frameDirection(){
+  return [Math.sin(phi)*Math.sin(theta),Math.cos(phi),Math.sin(phi)*Math.cos(theta)];
+}
+function fitWholeStage(reset=false){
+  const direction=frameDirection();
+  const next=stageFitDistance(camera.aspect,camera.fov,direction,{minDistance:baseRadius});
+  radius=reset?next:clamp(radius*next/frameFitRadius,9,Math.max(37,next*1.55));
+  frameFitRadius=next;
+  updateCamera(true);
+  if(preview?.id)emit({type:'frame-inspection',aspect:camera.aspect,distance:radius,
+    projected:sampleStageProjection(camera.aspect,camera.fov,direction,radius)});
+}
 const pointers=new Map();
 const clamp=(v,min,max)=>Math.min(max,Math.max(min,v));
 function updateCamera(immediate=false){
@@ -30,12 +44,12 @@ function handlePointer({action,id,x,y}){
     if(other){
       const before=Math.hypot(old.x-other.x,old.y-other.y);
       const after=Math.hypot(x-other.x,y-other.y);
-      if(before>0&&after>0)radius=clamp(radius*before/after,9,37);
+      if(before>0&&after>0)radius=clamp(radius*before/after,9,Math.max(37,frameFitRadius*1.55));
     }
   }
   pointers.set(id,{x,y});updateCamera();
 }
-updateCamera(true);
+fitWholeStage(true);
 scene.add(new T.HemisphereLight('#e2f7ff','#77734c',2));const sun=new T.DirectionalLight('#fff1c9',3.1);sun.position.set(-7,12,9);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.camera.left=-14;sun.shadow.camera.right=14;sun.shadow.camera.top=14;sun.shadow.camera.bottom=-14;scene.add(sun);
 const m=c=>new T.MeshStandardMaterial({color:c,roughness:1,flatShading:true}),sand=m('#efd49a'),wood=m('#805a3b'),bark=m('#967354'),leaf=m('#438551'),leaf2=m('#65a461'),skin=m('#d49d74'),hair=m('#53402e'),shirt=m('#eddfc0'),shorts=m('#987359'),white=m('#fff8e8');
 function obj(g,mt,x=0,y=0,z=0,p=scene){const o=new T.Mesh(g,mt);o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;p.add(o);return o}
@@ -148,14 +162,14 @@ function next(){
 function handle(message){
  switch(message.type){
   case 'pointer':handlePointer(message);break;
-  case 'wheel':radius=clamp(radius*Math.exp(message.delta*.001),9,37);updateCamera();break;
+  case 'wheel':radius=clamp(radius*Math.exp(message.delta*.001),9,Math.max(37,frameFitRadius*1.55));updateCamera();break;
   case 'resize':
    width=Math.max(1,message.width);height=Math.max(1,message.height);
-   camera.aspect=width/height;camera.updateProjectionMatrix();
+   camera.aspect=width/height;fitWholeStage();camera.updateProjectionMatrix();
    renderer.setPixelRatio(Math.min(message.pixelRatio||1,2));renderer.setSize(width,height,false);break;
   case 'next':next();break;
   case 'pause':paused=!paused;ui('pause',paused?'Resume':'Pause');break;
-  case 'reset':radius=Math.hypot(12,8,17);theta=Math.atan2(12,17);phi=Math.acos(8/radius);updateCamera(true);break;
+  case 'reset':theta=Math.atan2(12,17);phi=Math.acos(8/baseRadius);fitWholeStage(true);break;
   case 'night':
    dark=!dark;scene.background.set(dark?'#0d2244':'#94cfdf');scene.fog.color.copy(scene.background);
    sun.intensity=dark?.5:3.1;sun.color.set(dark?'#a6bce8':'#fff1c9');
