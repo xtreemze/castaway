@@ -16,6 +16,7 @@ async function verifyWebGL(page,label){
     webgl:!!gl,contextLost:gl?.isContextLost()??false,transferred};
  });
  assert.ok(result.width>0&&result.height>0,label+' canvas has no resolution');
+ if(label!=='forced-main-thread fallback')assert.equal(result.backend,'worker',label+' unexpectedly fell back from OffscreenCanvas');
  if(result.backend==='worker'){
   assert.ok(result.transferred,label+' worker must own the transferred canvas');
  }else{
