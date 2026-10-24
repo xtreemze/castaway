@@ -12,6 +12,7 @@ export function positionAt(kind,time){
   if(kind==='run'){
     // Closed elliptical circuit: both ends return to the exact origin with
     // zero velocity; the old route jumped ~1.2 units at t=9 and t=22.
+    if(t<=9||t>=22)return [0,.2];
     const angle=2*Math.PI*ease((t-9)/13);
     x=1.25*Math.sin(angle);
     z=.2+.85*(1-Math.cos(angle));
