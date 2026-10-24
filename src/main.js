@@ -62,6 +62,7 @@ async function toggleSound(){
 }
 $('sound').addEventListener('click',toggleSound);
 
+const motionPreference=matchMedia('(prefers-reduced-motion: reduce)');
 let surface,worker,runtime,recovering=false;
 let queue=[],dispatch=message=>queue.push(message);
 const send=message=>dispatch(message);
@@ -122,7 +123,7 @@ function createCanvas(){
 createCanvas();
 function sceneArgs(){
   return {canvas:surface,...size(),initialStoryState:read('castaway-original-story-v1'),
-    initialNarrativeState:read('castaway-story-v1'),preview};
+    initialNarrativeState:read('castaway-story-v1'),preview,reducedMotion:motionPreference.matches};
 }
 function recover(reason){
   if(recovering||runtime)return;
@@ -171,4 +172,5 @@ addEventListener('keydown',event=>{
 });
 addEventListener('resize',()=>send({type:'resize',...size()}));
 document.addEventListener('visibilitychange',()=>send({type:'visibility',visible:!document.hidden}));
+motionPreference.addEventListener?.('change',event=>send({type:'motion',reducedMotion:event.matches}));
 start();
