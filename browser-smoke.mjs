@@ -44,6 +44,14 @@ async function snapshotPierFraming(page,label){
  assert.match(await page.locator('#name').innerText(),/Magnificent Pier/);
  await page.screenshot({path:'screenshots/'+label+'-pier-to-nowhere-26s.png'});
 }
+async function snapshotOriginalBeat(page,id,time,label){
+ await page.goto('http://127.0.0.1:4173/?storyPreview='+id+'&storyTime='+time,{waitUntil:'load'});
+ await page.waitForSelector('canvas',{timeout:20000});
+ await page.waitForFunction(()=>document.querySelector('#name')?.textContent.startsWith('Preview'),null,{timeout:20000});
+ await verifyWebGL(page,label+' '+id);
+ await page.waitForTimeout(230);
+ await page.screenshot({path:'screenshots/'+label+'-'+id+'-'+time+'s.png'});
+}
 const browser=await chromium.launch({headless:true,args:['--use-gl=angle','--use-angle=swiftshader','--enable-webgl','--no-sandbox']});
 const page=await browser.newPage({viewport:{width:1280,height:720}});
 const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
