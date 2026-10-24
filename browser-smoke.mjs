@@ -6,6 +6,7 @@ import { mkdirSync } from 'node:fs';
 mkdirSync('screenshots',{recursive:true});
 async function verifyWebGL(page,label){
  await page.waitForFunction(()=>['worker','main'].includes(document.documentElement.dataset.castawayRenderer),null,{timeout:20000});
+ await page.waitForFunction(()=>document.documentElement.dataset.castawayFrame==='ready',null,{timeout:20000});
  const result=await page.locator('canvas').evaluate(canvas=>{
   const backend=document.documentElement.dataset.castawayRenderer;
   let gl=null,transferred=false;
