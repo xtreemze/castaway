@@ -19,10 +19,11 @@ jobs:
           node --check story-director.mjs
           node --check comedy-acting.mjs
           node --check crab-choreography.mjs
-          node --test story-director.test.mjs comedy-acting.test.mjs crab-choreography.test.mjs
+          node --test story-director.test.mjs comedy-acting.test.mjs crab-choreography.test.mjs camera-framing.test.mjs
       - name: Validate Vite runtime syntax
         run: |
           node --check src/main.js
+          node --check src/camera-framing.js
           node --check src/scene-runtime.js
           node --check src/scene-worker.js
           node --check src/audio/ocean-noise-processor.js
