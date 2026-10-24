@@ -27,3 +27,30 @@ export function positionAt(kind,time){
 }
 export function raftVisibility(progress,kind){return Math.max(0,Math.min(4,progress))>0||kind==='build'||kind==='raft'||kind==='depart'}
 export function plankCount(progress){return Math.max(0,Math.min(4,Math.trunc(progress)))}
+
+const pathDistanceCache = new Map();
+const samplesPerSecond=30;
+/**
+ * Arc length is integrated once per route on the worker, at fixed sample
+ * resolution. Playback never increments accumulated distance per frame.
+ */
+export function travelDistanceAt(kind,time){
+  let distances=pathDistanceCache.get(kind);
+  if(!distances){
+    distances=new Float64Array(30*samplesPerSecond+1);
+    let previous=positionAt(kind,0);
+    for(let i=1;i<distances.length;i++){
+      const current=positionAt(kind,i/samplesPerSecond);
+      distances[i]=distances[i-1]+Math.hypot(current[0]-previous[0],current[1]-previous[1]);
+      previous=current;
+    }
+    pathDistanceCache.set(kind,distances);
+  }
+  const index=Math.max(0,Math.min(30*samplesPerSecond,Number.isFinite(time)?time*samplesPerSecond:0));
+  const i=Math.floor(index),fraction=index-i;
+  return distances[i]+(distances[Math.min(i+1,distances.length-1)]-distances[i])*fraction;
+}
+export function gaitPhaseAt(kind,time){
+  const strideLength=kind==='run'?.82:.6;
+  return travelDistanceAt(kind,time)*2*Math.PI/strideLength;
+}
