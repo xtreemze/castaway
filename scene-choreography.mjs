@@ -7,8 +7,12 @@ export function positionAt(kind,time){
   const t=Number.isFinite(time)?Math.max(0,Math.min(30,time)):0;
   const dest=STATIONS[ROUTES[kind]||'center'];
   const approach=ease((t-1)/7);
-  let x=dest[0]*approach;
-  let z=.2+(dest[1]-.2)*approach;
+  // Episodes share one neutral staging position: recovery must walk the actor
+  // home instead of teleporting when the next 30-second vignette begins.
+  const recovery=1-ease((t-25)/5);
+  const blocking=approach*recovery;
+  let x=dest[0]*blocking;
+  let z=.2+(dest[1]-.2)*blocking;
   if(kind==='run'){
     // Closed elliptical circuit: both ends return to the exact origin with
     // zero velocity; the old route jumped ~1.2 units at t=9 and t=22.
