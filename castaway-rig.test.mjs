@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import * as T from 'three';
 import { createCastawayRig } from './castaway-rig.mjs';
 import { handContact } from './hand-rig.mjs';
-import { sampleOriginalHandContact } from './original-hand-contact.mjs';
+// Original prop handoffs are exercised separately by the semantic prop integration.
 
 const scene=new T.Scene();
 const mat=new T.MeshBasicMaterial({color:'white'});
@@ -44,17 +44,6 @@ for(const time of [12.6,13,15,17,19.3]){
   assert.ok(error<.051,'world wrist gap: '+time+' error '+error);
 }
 assert.equal(rig.applyHandIK('fish',15,target),null);
-for(const [id,time] of [['portable-shade',8.2],['return-to-sender',8],['return-to-sender',11],['return-to-sender',13.4]]){
-  rig.arms[1].rotation.set(0,0,0);
-  rig.elbows[1].rotation.set(0,0,0);
-  const contact=sampleOriginalHandContact(id,time,world);
-  assert.ok(contact&&contact.weight>.99,id+' full contact hold');
-  const solution=rig.applyHandIK('original',time,contact.position,contact.weight);
-  assert.ok(solution?.withinReach,id+' contact reachable');
-  rig.actor.updateWorldMatrix(true,true);
-  const actual=rig.hands[1].getWorldPosition(new T.Vector3());
-  assert.ok(actual.distanceTo(new T.Vector3(...contact.position))<.051,id+' wrist follows prop');
-}
 assert.equal(rig.applyHandIK('original',20,target,0),null);
 for(const t of [0,12,20,30]){
   rig.secondaryRigMotion(t,.2);
