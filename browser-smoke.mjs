@@ -34,6 +34,16 @@ async function snapshotCrabBeat(page,seconds,label){
  await page.waitForTimeout(180); // permit a fully rendered animation frame
  await page.screenshot({path:'screenshots/crab-'+label+'-'+String(seconds).replace('.','_')+'.png'});
 }
+async function snapshotPierFraming(page,label){
+ await page.goto('http://127.0.0.1:4173/?storyPreview=pier-to-nowhere&storyTime=26',{waitUntil:'load'});
+ await page.waitForFunction(()=>window.__castawayFrameInspection?.projected?.length>80,null,{timeout:20000});
+ await verifyWebGL(page,label+' pier');
+ const frame=await page.evaluate(()=>window.__castawayFrameInspection);
+ assert.ok(frame.projected.every(([x,y])=>Math.abs(x)<.92&&Math.abs(y)<.75),
+   label+' does not fit the whole pier, terrain shelf and canopy');
+ assert.match(await page.locator('#name').innerText(),/Magnificent Pier/);
+ await page.screenshot({path:'screenshots/'+label+'-pier-to-nowhere-26s.png'});
+}
 const browser=await chromium.launch({headless:true,args:['--use-gl=angle','--use-angle=swiftshader','--enable-webgl','--no-sandbox']});
 const page=await browser.newPage({viewport:{width:1280,height:720}});
 const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
@@ -71,8 +81,19 @@ await mobile.locator('#night').click();
 await mobile.waitForFunction(()=>document.querySelector('#night')?.textContent==='Day');
 await mobile.screenshot({path:'screenshots/mobile-390x844.png',fullPage:true});
 for(const t of [8,20,25])await snapshotCrabBeat(mobile,t,'mobile');
+await snapshotPierFraming(mobile,'mobile');
+await mobile.setViewportSize({width:844,height:390});
+await mobile.waitForFunction(()=>window.__castawayFrameInspection?.aspect>2,null,{timeout:10000});
+const landscape=await mobile.evaluate(()=>window.__castawayFrameInspection);
+assert.ok(landscape.projected.every(([x,y])=>Math.abs(x)<.92&&Math.abs(y)<.75),'landscape resize crop');
+await mobile.screenshot({path:'screenshots/mobile-landscape-pier-26s.png'});
+await mobile.setViewportSize({width:390,height:844});
+await mobile.waitForFunction(()=>window.__castawayFrameInspection?.aspect<.5,null,{timeout:10000});
+const restored=await mobile.evaluate(()=>window.__castawayFrameInspection);
+assert.ok(restored.projected.every(([x,y])=>Math.abs(x)<.92&&Math.abs(y)<.75),'restored portrait crop');
 await mobile.close();
 for(const t of [2,8,15,19.2,20,25,29])await snapshotCrabBeat(page,t,'desktop');
+await snapshotPierFraming(page,'desktop');
 // Exercise the same scene runtime without worker canvas transfer.
 await page.goto('http://127.0.0.1:4173/?renderThread=main',{waitUntil:'load'});
 await verifyWebGL(page,'forced-main-thread fallback');
