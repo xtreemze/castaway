@@ -1,11 +1,12 @@
 
-import * as T from 'three';import{EVENTS}from'../story-catalog.mjs';import{crabBlocking}from'../crab-choreography.mjs';import{comedyPose,comedySound}from'../comedy-acting.mjs';import{newStoryState,chooseStoryEvent,completeStoryEvent,beatForTime}from'../story-director.mjs';import{samplePose,beatAt}from'../animation-director.mjs';import{positionAt,raftVisibility,plankCount}from'../scene-choreography.mjs';import{propPose,applyInventory}from'../prop-choreography.mjs';import{secondaryMotion}from'../secondary-motion.mjs';import{expressionAt}from'../character-expression.mjs';import{handContact}from'../hand-rig.mjs';import{groundContact}from'../ground-contact.mjs';
+import * as T from 'three';import{cameraShot,framingEase,WIDE_SHOT}from'./camera-framing.js';import{EVENTS}from'../story-catalog.mjs';import{crabBlocking}from'../crab-choreography.mjs';import{comedyPose,comedySound}from'../comedy-acting.mjs';import{newStoryState,chooseStoryEvent,completeStoryEvent,beatForTime}from'../story-director.mjs';import{samplePose,beatAt}from'../animation-director.mjs';import{positionAt,raftVisibility,plankCount}from'../scene-choreography.mjs';import{propPose,applyInventory}from'../prop-choreography.mjs';import{secondaryMotion}from'../secondary-motion.mjs';import{expressionAt}from'../character-expression.mjs';import{handContact}from'../hand-rig.mjs';import{groundContact}from'../ground-contact.mjs';
 export function startScene({ canvas, emit, initialStoryState, initialNarrativeState, preview, width, height, pixelRatio = 1 }) {
 const scene=new T.Scene();scene.background=new T.Color('#94cfdf');scene.fog=new T.Fog('#94cfdf',26,95);const camera=new T.PerspectiveCamera(40,width/height,.1,180);camera.position.set(12,9,17);
 const renderer=new T.WebGLRenderer({antialias:true,canvas});renderer.setPixelRatio(Math.min(pixelRatio,2));renderer.setSize(width,height,false);renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFSoftShadowMap;renderer.outputColorSpace=T.SRGBColorSpace;
 const target = new T.Vector3(0,1,0);
 let radius=Math.hypot(12,8,17),theta=Math.atan2(12,17),phi=Math.acos(8/radius);
-let displayedRadius=radius,displayedTheta=theta,displayedPhi=phi;
+let displayedRadius=radius,displayedTheta=theta,displayedPhi=phi,automaticFraming=true;
+const lookAtShot=new T.Vector3();
 const pointers=new Map();
 const clamp=(v,min,max)=>Math.min(max,Math.max(min,v));
 function updateCamera(immediate=false){
@@ -17,11 +18,29 @@ function updateCamera(immediate=false){
   camera.position.set(target.x+displayedRadius*sin*Math.sin(displayedTheta),target.y+displayedRadius*Math.cos(displayedPhi),target.z+displayedRadius*sin*Math.cos(displayedTheta));
   camera.lookAt(target);
 }
+function snapShot(shot){
+ const eye=shot.position,focus=shot.focus;
+ target.set(...focus);
+ const dx=eye[0]-focus[0],dy=eye[1]-focus[1],dz=eye[2]-focus[2];
+ radius=Math.hypot(dx,dy,dz);theta=Math.atan2(dx,dz);phi=Math.acos(clamp(dy/radius,-1,1));
+ updateCamera(true);
+}
+function animateShot(dt){
+ if(!automaticFraming)return;
+ const shot=cameraShot(originalEvent?.id,width/height),alpha=framingEase(dt);
+ lookAtShot.set(...shot.focus);target.lerp(lookAtShot,alpha);
+ const dx=shot.position[0]-shot.focus[0],dy=shot.position[1]-shot.focus[1],dz=shot.position[2]-shot.focus[2];
+ const desiredRadius=Math.hypot(dx,dy,dz);
+ radius+=(desiredRadius-radius)*alpha;
+ theta+=(Math.atan2(dx,dz)-theta)*alpha;
+ phi+=(Math.acos(clamp(dy/desiredRadius,-1,1))-phi)*alpha;
+}
 function handlePointer({action,id,x,y}){
   if(action==='down'){pointers.set(id,{x,y});return}
   if(action==='up'){pointers.delete(id);return}
   const old=pointers.get(id);
   if(!old)return;
+  automaticFraming=false;
   if(pointers.size===1){
     theta-=((x-old.x)/Math.max(width,1))*Math.PI*2;
     phi=clamp(phi-((y-old.y)/Math.max(height,1))*Math.PI,0.03,1.48);
@@ -71,7 +90,7 @@ try{
   const value=initialStoryState;
   storyState=value&&Number.isInteger(value.seed)&&Array.isArray(value.flags)&&Array.isArray(value.played)&&Number.isInteger(value.episode)?value:newStoryState();
 }catch{storyState=newStoryState()}
-let originalEvent=null,previousOriginalBeat=-1;
+let originalEvent=null,previousOriginalBeat=-1,previewOnly=false;
 const comedyProps=new T.Group();comedyProps.visible=false;scene.add(comedyProps);
 const shade=obj(new T.ConeGeometry(.78,.1,5),leaf,0,2.45,0,comedyProps);
 const stick=obj(new T.CylinderGeometry(.035,.045,.8,6),bark,0,.5,0,comedyProps);
@@ -105,7 +124,7 @@ function paintOriginalEvent(time){
 function startOriginalEvent(){
   const selected=chooseStoryEvent(storyState);
   if(!selected)return false;
-  originalEvent=selected;
+  originalEvent=selected;previewOnly=false;
   seconds=0;previousBeat=-1;previousOriginalBeat=-1;
   ui('name','Day '+narrative.day+' · '+selected.title);
   ui('desc',selected.phases[0]);
@@ -114,9 +133,11 @@ function startOriginalEvent(){
 }
 function finishOriginalEvent(){
   if(!originalEvent)return;
-  storyState=completeStoryEvent(storyState,originalEvent);
-  emit({type:'persist',key:'castaway-original-story-v1',value:storyState});
-  originalEvent=null;comedyProps.visible=false;
+  if(!previewOnly){
+    storyState=completeStoryEvent(storyState,originalEvent);
+    emit({type:'persist',key:'castaway-original-story-v1',value:storyState});
+  }
+  originalEvent=null;previewOnly=false;comedyProps.visible=false;
   foam.forEach((o,i)=>o.position.y=-.45+i*.015);
 }
 const stories=[['A quiet day','He surveys his kingdom of sand.','idle','A kingdom of one.'],['Gone fishing','Patience is an admirable quality.','fish','The fish have other plans.'],['Coconut lunch','Lunch is more complicated than expected.','coconut','Lunch fights back.'],['Morning exercise','One lap is a considerable expedition.','run','Around the world in eight seconds.'],['A distant ship','He waves with unreasonable confidence.','wave','Perhaps they saw him.'],['A magnificent invention','The castaway works on a glorious plan.','build','Progress is relative.'],['The raft','Four logs and a limitless imagination.','raft','Nothing can possibly go wrong.'],['Rain dance','The weather does not cooperate.','dance','The clouds seem unimpressed.'],['Afternoon nap','There is time to dream.','sleep','He dreams of dry socks.'],['Departure','The greatest journey begins.','depart','It ends slightly sooner.'],['Something in the water','Perhaps swimming is a bad idea.','alarm','There are other options.'],['Still here','The tide brings another day.','idle','There is always tomorrow.']];
@@ -139,7 +160,8 @@ function event(n){if(originalEvent){originalEvent=null;comedyProps.visible=false
 // Read-only QA previews are resolved in the worker, not from window.location.
 const previewScene=EVENTS.find(item=>item.id===preview?.id);
 if(previewScene){
-  originalEvent=previewScene;
+  originalEvent=previewScene;previewOnly=true;
+  snapShot(cameraShot(previewScene.id,width/height));
   const previewTime=Number(preview.time);
   seconds=Number.isFinite(previewTime)?Math.max(0,Math.min(duration-.001,previewTime)):0;
   paused=true;
@@ -147,20 +169,26 @@ if(previewScene){
   ui('sub',previewScene.accessibilitySummary);
 }
 function next(){
- if(originalEvent){originalEvent=null;comedyProps.visible=false;foam.forEach((o,i)=>o.position.y=-.45+i*.015);event(index+1)}
+ if(originalEvent){originalEvent=null;previewOnly=false;comedyProps.visible=false;foam.forEach((o,i)=>o.position.y=-.45+i*.015);event(index+1)}
  else if(!startOriginalEvent())event(index+1);
 }
 function handle(message){
  switch(message.type){
   case 'pointer':handlePointer(message);break;
-  case 'wheel':radius=clamp(radius*Math.exp(message.delta*.001),9,37);updateCamera();break;
+  case 'wheel':automaticFraming=false;radius=clamp(radius*Math.exp(message.delta*.001),6,37);updateCamera();break;
   case 'resize':
    width=Math.max(1,message.width);height=Math.max(1,message.height);
    camera.aspect=width/height;camera.updateProjectionMatrix();
    renderer.setPixelRatio(Math.min(message.pixelRatio||1,2));renderer.setSize(width,height,false);break;
   case 'next':next();break;
   case 'pause':paused=!paused;ui('pause',paused?'Resume':'Pause');break;
-  case 'reset':radius=Math.hypot(12,8,17);theta=Math.atan2(12,17);phi=Math.acos(8/radius);updateCamera(true);break;
+  case 'reset':automaticFraming=false;snapShot(WIDE_SHOT);break;
+  case 'preview-seek':
+   if(!previewOnly||!originalEvent)break;
+   {const time=Number(message.time);
+    seconds=Number.isFinite(time)?clamp(time,0,duration-.001):0;
+    paused=true;ui('pause','Resume');previousOriginalBeat=-1;}
+   break;
   case 'night':
    dark=!dark;scene.background.set(dark?'#0d2244':'#94cfdf');scene.fog.color.copy(scene.background);
    sun.intensity=dark?.5:3.1;sun.color.set(dark?'#a6bce8':'#fff1c9');
@@ -188,6 +216,6 @@ if(k==='sleep'){actor.rotation.z=-1.4*smooth(seconds/6);actor.position.y=.22}
 if(k==='depart'){raft.position.x=1.6+.5*Math.sin(phase*Math.PI);raft.position.y=.05+.04*Math.sin(t*2)}
 if(k==='alarm'){arms[0].rotation.z=-1.8;arms[1].rotation.z=1.8;head.rotation.z=.18*Math.sin(t*4)*energy}stagedPose(k,seconds);const expression=expressionAt(k,seconds);const contact=handContact(k,seconds,[actor.position.x,actor.position.y,actor.position.z]);hands.forEach((hand,i)=>{hand.rotation.x=(i===contact.hand?-1:1)*contact.closure*.8;hand.children.forEach(child=>{if(child.userData.finger)child.rotation.x=contact.closure*.95})});eyes.forEach((eye,i)=>{eye.scale.y=Math.max(.09,1-expression.blink*.92);pupils[i].scale.y=eye.scale.y;pupils[i].position.x=(i===0?-.13:.13)+expression.gazeX*.025;pupils[i].position.y=.04+expression.gazeY*.03;brows[i].position.y=.145+expression.shock*.085-expression.focus*.025;brows[i].rotation.z=(i===0?-1:1)*(expression.shock*.36-expression.focus*.2)});head.rotation.x-=expression.shock*.18;legs[0].rotation.x+=secondary.leftLeg;legs[1].rotation.x+=secondary.rightLeg;arms[0].rotation.x+=secondary.leftArm;arms[1].rotation.x+=secondary.rightArm;torso.rotation.x+=secondary.lean;head.rotation.x+=secondary.lookUp;if(secondary.heading!==null&&k!=='run')actor.rotation.y=secondary.heading;if(beat!==previousBeat){if(!paused)foley(k,beat);previousBeat=beat}if(originalEvent&&beat!==previousOriginalBeat){const pitch=comedySound(originalEvent.id,beat);if(pitch&&!paused)cue(pitch);previousOriginalBeat=beat;}if(!originalEvent)playConsequences(k,seconds);else{carriedLog.visible=false;pole.visible=false;float.visible=false;coconut.visible=false;raft.visible=false;paintOriginalEvent(seconds);ui('desc',originalEvent.phases[beatForTime(seconds)]);}
 if(!paused&&t-lastAmbienceSent>=.1){lastAmbienceSent=t;emit({type:'ambience',time:t,dark});if(!dark&&t-bird>9){bird=t;cue(1200)}}
-if(t-lastProgressSent>=.1){lastProgressSent=t;emit({type:'progress',ratio:seconds/duration})}updateCamera();renderer.render(scene,camera)}
+if(t-lastProgressSent>=.1){lastProgressSent=t;emit({type:'progress',ratio:seconds/duration})}animateShot(dt);updateCamera();renderer.render(scene,camera)}
 frame();return {handle,dispose(){cancel(requestId);renderer.dispose()}};
 }
