@@ -126,7 +126,7 @@ function finishOriginalEvent(){
   storyState=completeStoryEvent(storyState,originalEvent);
   emit({type:'persist',key:'castaway-original-story-v1',value:storyState});
   originalEvent=null;comedyProps.visible=false;
-  foam.forEach((o,i)=>o.position.y=-.45+i*.015);
+  
 }
 const stories=[['A quiet day','He surveys his kingdom of sand.','idle','A kingdom of one.'],['Gone fishing','Patience is an admirable quality.','fish','The fish have other plans.'],['Coconut lunch','Lunch is more complicated than expected.','coconut','Lunch fights back.'],['Morning exercise','One lap is a considerable expedition.','run','Around the world in eight seconds.'],['A distant ship','He waves with unreasonable confidence.','wave','Perhaps they saw him.'],['A magnificent invention','The castaway works on a glorious plan.','build','Progress is relative.'],['The raft','Four logs and a limitless imagination.','raft','Nothing can possibly go wrong.'],['Rain dance','The weather does not cooperate.','dance','The clouds seem unimpressed.'],['Afternoon nap','There is time to dream.','sleep','He dreams of dry socks.'],['Departure','The greatest journey begins.','depart','It ends slightly sooner.'],['Something in the water','Perhaps swimming is a bad idea.','alarm','There are other options.'],['Still here','The tide brings another day.','idle','There is always tomorrow.']];
 const narrative={day:1,hope:70,failures:0,coconuts:0,raftProgress:0,seen:{},lastKinds:[],lastEvent:0};
@@ -144,7 +144,7 @@ function chooseNext(){const eligible=stories.map((s,i)=>({i,score:Math.random()+
 function resolveEvent(){const k=stories[index][2];narrative.seen[index]=(narrative.seen[index]||0)+1;narrative.lastKinds=[...narrative.lastKinds,k].slice(-3);narrative.lastEvent=index;narrative.day++;
 Object.assign(narrative,applyInventory(narrative,k));if(k==='depart'){narrative.failures++;narrative.hope=Math.max(35,narrative.hope-8);narrative.raftProgress=0}if(k==='wave'||k==='raft')narrative.hope=Math.min(100,narrative.hope+4);
 emit({type:'persist',key:'castaway-story-v1',value:narrative});}
-function event(n){if(originalEvent){originalEvent=null;comedyProps.visible=false;foam.forEach((o,i)=>o.position.y=-.45+i*.015);}lastFootfall=-1;if(typeof index==='number'&&total>0&&seconds>=duration-0.05)resolveEvent();previousBeat=-1;index=(n+stories.length)%stories.length;seconds=0;const [name,desc,kind,sub]=stories[index];storedCoconuts.forEach((o,i)=>o.visible=i<Math.min(8,narrative.coconuts));ui('name','Day '+narrative.day+' · '+name);ui('desc',desc);ui('sub',sub);coconut.visible=kind==='coconut';pole.visible=float.visible=kind==='fish';raft.visible=raftVisibility(narrative.raftProgress,kind);cue(460+index*25)}event(0);
+function event(n){if(originalEvent){originalEvent=null;comedyProps.visible=false;}lastFootfall=-1;if(typeof index==='number'&&total>0&&seconds>=duration-0.05)resolveEvent();previousBeat=-1;index=(n+stories.length)%stories.length;seconds=0;const [name,desc,kind,sub]=stories[index];storedCoconuts.forEach((o,i)=>o.visible=i<Math.min(8,narrative.coconuts));ui('name','Day '+narrative.day+' · '+name);ui('desc',desc);ui('sub',sub);coconut.visible=kind==='coconut';pole.visible=float.visible=kind==='fish';raft.visible=raftVisibility(narrative.raftProgress,kind);cue(460+index*25)}event(0);
 // Read-only QA previews are resolved in the worker, not from window.location.
 const previewScene=EVENTS.find(item=>item.id===preview?.id);
 if(previewScene){
