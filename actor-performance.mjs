@@ -58,7 +58,7 @@ export function sampleActorPerformance({
   if (routine) {
     switch (kind) {
       case 'fish':
-        root[1] = -.5;
+        root[1] = -.5 * envelope(t, 0, 3, 26, 30);
         arms[1][0] -= .9 * active;
         if (t >= 20 && t < 25) head[2] += .18 * reversal;
         break;
@@ -88,7 +88,7 @@ export function sampleActorPerformance({
         break;
       case 'sleep':
         root[2] -= 1.38 * ease(t / 6) * (1 - ease((t - 25) / 4));
-        height += .11 * ease(t / 6);
+        height += .11 * ease(t / 6) * (1 - ease((t - 25) / 4));
         break;
       case 'alarm':
         arms[0][2] -= 1.65 * active; arms[1][2] += 1.65 * active;
