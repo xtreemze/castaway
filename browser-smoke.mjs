@@ -6,6 +6,7 @@ import { mkdirSync } from 'node:fs';
 mkdirSync('screenshots',{recursive:true});
 async function verifyWebGL(page,label){
  await page.waitForFunction(()=>['worker','main'].includes(document.documentElement.dataset.castawayRenderer),null,{timeout:20000});
+ await page.waitForFunction(()=>document.documentElement.dataset.castawayFrame==='ready',null,{timeout:20000});
  const result=await page.locator('canvas').evaluate(canvas=>{
   const backend=document.documentElement.dataset.castawayRenderer;
   let gl=null,transferred=false;
@@ -15,6 +16,7 @@ async function verifyWebGL(page,label){
     webgl:!!gl,contextLost:gl?.isContextLost()??false,transferred};
  });
  assert.ok(result.width>0&&result.height>0,label+' canvas has no resolution');
+ if(label!=='forced-main-thread fallback')assert.equal(result.backend,'worker',label+' unexpectedly fell back from OffscreenCanvas');
  if(result.backend==='worker'){
   assert.ok(result.transferred,label+' worker must own the transferred canvas');
  }else{
@@ -43,6 +45,14 @@ async function snapshotPierFraming(page,label){
    label+' does not fit the whole pier, terrain shelf and canopy');
  assert.match(await page.locator('#name').innerText(),/Magnificent Pier/);
  await page.screenshot({path:'screenshots/'+label+'-pier-to-nowhere-26s.png'});
+}
+async function snapshotOriginalBeat(page,id,time,label){
+ await page.goto('http://127.0.0.1:4173/?storyPreview='+id+'&storyTime='+time,{waitUntil:'load'});
+ await page.waitForSelector('canvas',{timeout:20000});
+ await page.waitForFunction(()=>document.querySelector('#name')?.textContent.startsWith('Preview'),null,{timeout:20000});
+ await verifyWebGL(page,label+' '+id);
+ await page.waitForTimeout(230);
+ await page.screenshot({path:'screenshots/'+label+'-'+id+'-'+time+'s.png'});
 }
 const browser=await chromium.launch({headless:true,args:['--use-gl=angle','--use-angle=swiftshader','--enable-webgl','--no-sandbox']});
 const page=await browser.newPage({viewport:{width:1280,height:720}});
@@ -82,6 +92,8 @@ await mobile.waitForFunction(()=>document.querySelector('#night')?.textContent==
 await mobile.screenshot({path:'screenshots/mobile-390x844.png',fullPage:true});
 for(const t of [8,20,25])await snapshotCrabBeat(mobile,t,'mobile');
 await snapshotPierFraming(mobile,'mobile');
+for(const [id,t] of [['portable-shade',8],['return-to-sender',14],['return-to-sender',24]])await snapshotOriginalBeat(mobile,id,t,'mobile');
+await snapshotPierFraming(mobile,'mobile');
 await mobile.setViewportSize({width:844,height:390});
 await mobile.waitForFunction(()=>window.__castawayFrameInspection?.aspect>2,null,{timeout:10000});
 const landscape=await mobile.evaluate(()=>window.__castawayFrameInspection);
@@ -94,6 +106,7 @@ assert.ok(restored.projected.every(([x,y])=>Math.abs(x)<.92&&Math.abs(y)<.75),'r
 await mobile.close();
 for(const t of [2,8,15,19.2,20,25,29])await snapshotCrabBeat(page,t,'desktop');
 await snapshotPierFraming(page,'desktop');
+for(const [id,t] of [['portable-shade',8],['portable-shade',23],['return-to-sender',11],['return-to-sender',14],['return-to-sender',24]])await snapshotOriginalBeat(page,id,t,'desktop');
 // Exercise the same scene runtime without worker canvas transfer.
 await page.goto('http://127.0.0.1:4173/?renderThread=main',{waitUntil:'load'});
 await verifyWebGL(page,'forced-main-thread fallback');
