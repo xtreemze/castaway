@@ -94,7 +94,7 @@ export function sampleOriginalPropStage(eventId,seconds,root=[0,0,.2]) {
     const held=[x+.55,y+1.04,z+.35];
     const edge=[1.42,-.26,1.23];
     const afloat=[2.06,-.44,1.38];
-    const home=[x+.25,y+.14,z+.35];
+    const home=[x+.25,heightAt(x+.25,z+.35)+.185,z+.35];
     let bottlePosition;
     if(t<15)bottlePosition=held;
     else if(t<19)bottlePosition=blend(held,edge,ease((t-15)/4));

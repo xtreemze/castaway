@@ -121,5 +121,34 @@ for(const time of [8,19.8,25]){
   if(time>=19.8)assert.ok(sample.clawGap<.002,'glove detached from crab claw @'+time);
   await page.screenshot({path:'screenshots/episodes/desktop-storyPreview-crab-'+time+'s.png'});
 }
+// Reconstruct persistent fixtures from an existing save, without completing or
+// mutating any story episode. Active episodes temporarily own their own props.
+const persistencePage=await browser.newPage({viewport:{width:1280,height:720}});
+persistencePage.on('pageerror',e=>errors.push('saved world: '+e.message));
+await persistencePage.route('**/castaway/assets/**',
+  route=>route.continue({url:route.request().url().replace('/castaway/assets/','/assets/')}));
+await persistencePage.addInitScript(()=>{
+  localStorage.setItem('castaway-original-story-v1',JSON.stringify({
+    seed:0xC457A,played:[],flags:['sundial_built','pier_inspected','bottle_sent','crab_met'],
+    lastMechanism:null,episode:4,
+  }));
+});
+for(const [scene,time,hidden] of [
+  ['fish',5,null],['sundial',21,'sundial'],
+  ['pier-to-nowhere',26,'sign'],['crab-handshake',20,'crab'],
+]){
+  await persistencePage.goto('http://127.0.0.1:4173/?event='+scene+'&time='+time,{waitUntil:'load'});
+  await persistencePage.waitForFunction(()=>Boolean(window.__castawayCommitted));
+  const p=await persistencePage.evaluate(()=>window.__castawayCommitted);
+  assert.equal(p.sundial,hidden!=='sundial');
+  assert.equal(p.pebbles,hidden==='sundial'?0:8);
+  assert.equal(p.sign,hidden!=='sign');
+  assert.equal(p.bottle,true);
+  assert.equal(p.crab,hidden!=='crab');
+  if(scene==='fish')await persistencePage.screenshot({
+    path:'screenshots/episodes/desktop-committed-world-fixtures.png',
+  });
+}
+await persistencePage.close();
 assert.deepEqual(errors,[],errors.join('\n'));
 await browser.close();console.log('Browser smoke test passed');
