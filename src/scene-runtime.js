@@ -129,7 +129,7 @@ function paintOriginalEvent(time){
     torso.rotation.x+=.42*b.handBend+.18*b.bow;
     arms[1].rotation.x-=1.2*b.handReach;
     head.rotation.x+=.22*b.recognition;head.rotation.z-=.2*b.recognition;
-  }else{crab.scale.setScalar(1)}
+  }else{crab.scale.setScalar(1);crab.rotation.y=0;crabClaws.forEach(claw=>claw.rotation.z=0)}
   if(id==='sundial'){crown.rotation.z+=beat>=3?.22*impact:0;}
   if(id==='return-to-sender'){bottle.rotation.z=beat>=3?.18*Math.sin(time*5):0;}
   if(id==='pier-to-nowhere'){actor.position.x=1.4;actor.rotation.y=.7;foam.forEach((o,i)=>o.position.y=-.45+i*.015-(beat>=3?.10*impact:0));}
