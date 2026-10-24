@@ -24,9 +24,7 @@ async function verifyWebGL(page,label){
 }
 const crabScene=EVENTS.find(e=>e.id==='crab-handshake');
 async function snapshotCrabBeat(page,seconds,label){
- const path='http://127.0.0.1:4173/?storyPreview=crab-handshake&storyTime='+seconds;
- await page.goto(path,{waitUntil:'load'});
- await page.waitForSelector('canvas',{timeout:20000});
+ await page.evaluate(time=>window.__castawayPreviewSeek(time),seconds);
  const expected=crabScene.phases[beatForTime(seconds)];
  await page.waitForFunction(text=>document.querySelector('#desc')?.textContent===text,expected,{timeout:10000});
  assert.match(await page.locator('#name').innerText(),/Diplomatic Relations/);
@@ -70,9 +68,20 @@ await mobile.waitForFunction(()=>document.querySelector('#pause')?.textContent==
 await mobile.locator('#night').click();
 await mobile.waitForFunction(()=>document.querySelector('#night')?.textContent==='Day');
 await mobile.screenshot({path:'screenshots/mobile-390x844.png',fullPage:true});
+await mobile.goto('http://127.0.0.1:4173/?storyPreview=crab-handshake&storyTime=0',{waitUntil:'load'});
+await mobile.waitForSelector('canvas');
 for(const t of [8,20,25])await snapshotCrabBeat(mobile,t,'mobile');
 await mobile.close();
+await page.goto('http://127.0.0.1:4173/?storyPreview=crab-handshake&storyTime=0',{waitUntil:'load'});
+await page.waitForSelector('canvas');
 for(const t of [2,8,15,19.2,20,25,29])await snapshotCrabBeat(page,t,'desktop');
+// A preview must never award progression even when playback reaches the boundary.
+const before=await page.evaluate(()=>localStorage.getItem('castaway-original-story-v1'));
+await page.evaluate(()=>window.__castawayPreviewSeek(29.99));
+await page.locator('#pause').click();
+await page.waitForFunction(()=>!document.querySelector('#name')?.textContent?.startsWith('Preview'),null,{timeout:10000});
+const after=await page.evaluate(()=>localStorage.getItem('castaway-original-story-v1'));
+assert.equal(after,before,'Read-only preview must not write story progression');
 // Exercise the same scene runtime without worker canvas transfer.
 await page.goto('http://127.0.0.1:4173/?renderThread=main',{waitUntil:'load'});
 await verifyWebGL(page,'forced-main-thread fallback');

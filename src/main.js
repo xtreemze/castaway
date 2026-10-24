@@ -172,3 +172,5 @@ addEventListener('keydown',event=>{
 addEventListener('resize',()=>send({type:'resize',...size()}));
 document.addEventListener('visibilitychange',()=>send({type:'visibility',visible:!document.hidden}));
 start();
+// Restricted to storyboard URLs: QA controls the worker clock without changing story state.
+if(preview.id)window.__castawayPreviewSeek=time=>send({type:'preview-seek',time});
