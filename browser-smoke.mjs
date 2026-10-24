@@ -90,6 +90,8 @@ await mobile.waitForFunction(()=>document.querySelector('#night')?.textContent==
 await mobile.screenshot({path:'screenshots/mobile-390x844.png',fullPage:true});
 for(const t of [8,20,25])await snapshotCrabBeat(mobile,t,'mobile');
 await snapshotPierFraming(mobile,'mobile');
+for(const [id,t] of [['portable-shade',8],['return-to-sender',14],['return-to-sender',24]])await snapshotOriginalBeat(mobile,id,t,'mobile');
+await snapshotPierFraming(mobile,'mobile');
 await mobile.setViewportSize({width:844,height:390});
 await mobile.waitForFunction(()=>window.__castawayFrameInspection?.aspect>2,null,{timeout:10000});
 const landscape=await mobile.evaluate(()=>window.__castawayFrameInspection);
@@ -102,6 +104,7 @@ assert.ok(restored.projected.every(([x,y])=>Math.abs(x)<.92&&Math.abs(y)<.75),'r
 await mobile.close();
 for(const t of [2,8,15,19.2,20,25,29])await snapshotCrabBeat(page,t,'desktop');
 await snapshotPierFraming(page,'desktop');
+for(const [id,t] of [['portable-shade',8],['portable-shade',23],['return-to-sender',11],['return-to-sender',14],['return-to-sender',24]])await snapshotOriginalBeat(page,id,t,'desktop');
 // Exercise the same scene runtime without worker canvas transfer.
 await page.goto('http://127.0.0.1:4173/?renderThread=main',{waitUntil:'load'});
 await verifyWebGL(page,'forced-main-thread fallback');
