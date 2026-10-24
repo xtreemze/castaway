@@ -29,9 +29,12 @@ export function createPersistentStoryFixtures({T,scene,obj,ball,rod,m,white,wood
   });
 
   const bottlePose=sampleOriginalPropStage('return-to-sender',30).bottle;
+  // The story's return pose is an animation target; the committed bottle
+  // rests on the actual sand with its cylinder bottom above the surface.
+  const [bottleX,,bottleZ]=bottlePose.position;
   const bottle=obj(new T.CylinderGeometry(.085,.1,.37,7),
     new T.MeshStandardMaterial({color:'#8fc8b6',roughness:.42,metalness:.04,transparent:true,opacity:.8}),
-    ...bottlePose.position,group);
+    bottleX,heightAt(bottleX,bottleZ)+.185,bottleZ,group);
   bottle.name='committed-message-bottle';
 
   // The recurring crab is not a new story event. Its visibility is a projection
