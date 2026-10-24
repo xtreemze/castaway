@@ -36,3 +36,12 @@ test('stopped characters do not accumulate new gait steps',()=>{
   assert.equal(gaitPhaseAt('idle',3),gaitPhaseAt('idle',26));
   assert.equal(gaitPhaseAt('run',22),gaitPhaseAt('run',30));
 });
+
+test('all legacy scenes finish at the neutral actor station with no boundary teleport',()=>{
+ for(const kind of Object.keys(ROUTES)){
+   assert.deepEqual(positionAt(kind,0),[0,.2],kind+' start');
+   assert.deepEqual(positionAt(kind,30),[0,.2],kind+' end');
+   const last=positionAt(kind,29.999);
+   assert.ok(Math.hypot(last[0],last[1]-.2)<.0001,kind+' recovery');
+ }
+});
