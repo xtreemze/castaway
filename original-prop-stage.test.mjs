@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {EVENTS} from './story-catalog.mjs';
+import {heightAt} from './world-terrain.mjs';
 import {validateStoryPropCoverage,sampleOriginalPropStage,PROP_RESOURCES} from './original-prop-stage.mjs';
 
 test('every catalog actor and prop resolves to geometry or a world fixture',()=>{
@@ -51,4 +52,11 @@ test('sundial and pier sign are staged only during their own episodes',()=>{
   assert.equal(sampleOriginalPropStage('pier-to-nowhere',26.1).sign.visible,true);
   assert.equal(sampleOriginalPropStage('pier-to-nowhere',28).sign.owner,'quay');
   assert.equal(sampleOriginalPropStage('crab-handshake',28).sign.visible,false);
+});
+
+test('the returned bottle lands on the exact committed terrain height',()=>{
+  for(const t of [28,29,29.999,30]){
+    const p=sampleOriginalPropStage('return-to-sender',t,[0,0,.2]).bottle.position;
+    assert.ok(Math.abs(p[1]-heightAt(p[0],p[2])-.185)<1e-8,'final bottle buried at '+t);
+  }
 });
