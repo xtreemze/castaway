@@ -12,6 +12,7 @@ self.onmessage = ({data}) => {
         initialStoryState:data.initialStoryState,
         initialNarrativeState:data.initialNarrativeState,
         preview:data.preview,
+        reducedMotion:data.reducedMotion,
         emit:message=>self.postMessage(message),
       });
       self.postMessage({type:'ready'});
