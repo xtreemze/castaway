@@ -8,6 +8,9 @@ import {heightAt,waterHeightAt} from '../world-terrain.mjs';
 import {stageFitDistance} from '../camera-framing.mjs';
 import {createCastawayRig} from '../castaway-rig.mjs';
 import {sampleFootContacts} from '../foot-contact.mjs';
+import {sampleOriginalPropStage} from '../original-prop-stage.mjs';
+import {sampleOriginalHandContact} from '../original-hand-contact.mjs';
+import {createSupplementaryOriginalMeshes} from '../original-prop-meshes.mjs';
 export function startScene({ canvas, emit, initialStoryState, initialNarrativeState, preview, reducedMotion: initialReducedMotion = false, width, height, pixelRatio = 1 }) {
 const scene=new T.Scene();scene.background=new T.Color('#94cfdf');scene.fog=new T.Fog('#94cfdf',26,95);const camera=new T.PerspectiveCamera(40,width/height,.1,180);camera.position.set(12,9,17);
 const renderer=new T.WebGLRenderer({antialias:true,canvas});renderer.setPixelRatio(Math.min(pixelRatio,2));renderer.setSize(width,height,false);renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFSoftShadowMap;renderer.outputColorSpace=T.SRGBColorSpace;
@@ -112,22 +115,33 @@ obj(new T.BoxGeometry(.3,.075,.25),m('#45b163'),0,0,0,glove);
 obj(new T.BoxGeometry(.12,.075,.15),leaf2,.15,0,.10,glove);
 const gloveHandSocket=new T.Vector3(),gloveCrabSocket=new T.Vector3();
 const bottle=obj(new T.CylinderGeometry(.085,.1,.37,7),new T.MeshStandardMaterial({color:'#8fc8b6',transparent:true,opacity:.8}),0,.2,0,comedyProps);
+const supplementalProps=createSupplementaryOriginalMeshes({T,obj,m,white,wood,bark,leaf,comedyProps});
 function paintOriginalEvent(time){
   comedyProps.visible=Boolean(originalEvent);
   if(!originalEvent)return;
-  const id=originalEvent.id,beat=beatForTime(time),impact=smooth((time-19)/4),recovery=smooth((time-24)/6);
-  shade.visible=id==='portable-shade';stick.visible=id==='sundial';
-  pebbleMeshes.forEach(p=>p.visible=id==='sundial');
+  const id=originalEvent.id,beat=beatForTime(time),impact=smooth((time-19)/4);
+  const staged=sampleOriginalPropStage(id,time,actor.position.toArray());
+  const meshes={shade,stick,bottle,...supplementalProps};
+  for(const [name,mesh] of Object.entries(meshes)){
+    const state=staged[name];
+    mesh.visible=state.visible;
+    if(state.visible){mesh.position.set(...state.position);mesh.rotation.set(...state.rotation)}
+  }
+  pebbleMeshes.forEach((item,i)=>{
+    item.visible=staged.pebbles.visible;
+    if(item.visible){const [x,y,z]=staged.pebbles.position;
+      item.position.set(x+Math.cos(i*Math.PI/4)*.55,y,z+Math.sin(i*Math.PI/4)*.55)}
+  });
   crab.visible=id==='crab-handshake'||id==='return-to-sender';
-  glove.visible=id==='crab-handshake';bottle.visible=id==='return-to-sender';
-  shade.position.set(actor.position.x,2.5,actor.position.z);
-  shade.rotation.y=beat>=3?Math.PI*impact:0;
-  shade.rotation.z=beat>=3?-.45*impact:0;
-  stick.position.set(.25,.4,.4);
-  pebbleMeshes.forEach((p,i)=>p.position.set(.25+Math.cos(i*Math.PI/4)*.55,.045,.4+Math.sin(i*Math.PI/4)*.55));
-  if(id!=='crab-handshake'){crab.position.set(.8,.12,.7);glove.position.set(0,.2,0);glove.scale.setScalar(1)}
-  bottle.position.set(beat<3?actor.position.x+.6:1.4+Math.sin(time*1.5)*.3,beat<3?.25:-.3,1.2);
-  if(id==='portable-shade'){shade.position.y=2.5+.08*Math.sin(time*1.6);shade.rotation.y=beat>=3?Math.PI*impact:0;}
+  glove.visible=id==='crab-handshake';
+  if(id!=='crab-handshake'){
+    glove.position.set(0,.2,0);glove.scale.setScalar(1);
+    crab.position.set(.8,heightAt(.8,.7)+.07,.7);
+    if(id==='return-to-sender'&&time>=23&&time<28){
+      const [x,,z]=staged.bottle.position;
+      crab.position.set(x,heightAt(x,z)+.07,z-.18);
+    }
+  }
   let crabPose=null;
   if(id==='crab-handshake'){
     const b=crabPose=crabBlocking(time);
@@ -141,7 +155,6 @@ function paintOriginalEvent(time){
     head.rotation.x+=.22*b.recognition;head.rotation.z-=.2*b.recognition;
   }else{crab.scale.setScalar(1);crab.rotation.y=0;crabClaws.forEach(claw=>claw.rotation.z=0)}
   if(id==='sundial'){crown.rotation.z+=beat>=3?.22*impact:0;}
-  if(id==='return-to-sender'){bottle.rotation.z=beat>=3?.18*Math.sin(time*5):0;}
   if(id==='pier-to-nowhere'){actor.position.x=1.4;actor.rotation.y=.7;}
   const acting=comedyPose(id,time);torso.rotation.x+=acting.lean;head.rotation.z+=acting.headRoll;head.rotation.x+=acting.lookUp;arms[1].rotation.x+=acting.arm;actor.rotation.y+=acting.bodyTurn;
   if(crabPose){
@@ -151,6 +164,11 @@ function paintOriginalEvent(time){
     const claw=crabClaws[1].localToWorld(gloveCrabSocket.set(.28,.13,.10));
     glove.position.copy(hand).lerp(claw,crabPose.contact);
     glove.scale.setScalar(1-crabPose.contact+crabPose.contact*crabPose.crabScale);
+  }
+  const grip=sampleOriginalHandContact(id,time,actor.position.toArray(),staged);
+  if(grip){
+    applyHandIK('original',time,grip.position,grip.weight);
+    hands[1].children.forEach(part=>{if(part.userData.finger)part.rotation.x=grip.weight*.9});
   }
 }
 function startOriginalEvent(){
@@ -232,7 +250,7 @@ function handle(message){
   case 'motion-preference':reducedMotion=Boolean(message.reducedMotion);break;
  }
 }
-let lastProgressSent=-1,lastAmbienceSent=-1;
+let lastProgressSent=-1,lastAmbienceSent=-1,firstFrameSent=false;
 const clock=new T.Clock();let bird=0,lastRenderTime=0;
 const raf=typeof requestAnimationFrame==='function'?requestAnimationFrame:(callback)=>setTimeout(()=>callback(performance.now()),16);
 const cancel=typeof cancelAnimationFrame==='function'?cancelAnimationFrame:clearTimeout;
@@ -251,7 +269,7 @@ if(k==='depart'){raft.position.x=1.6+.5*Math.sin(phase*Math.PI);raft.position.y=
 if(k==='alarm'){arms[0].rotation.z=-1.8;arms[1].rotation.z=1.8;head.rotation.z=.18*Math.sin(t*4)*energy}stagedPose(k,seconds);const expression=expressionAt(k,seconds);const contact=handContact(k,seconds,[actor.position.x,actor.position.y,actor.position.z]);hands.forEach((hand,i)=>{hand.rotation.x=(i===contact.hand?-1:1)*contact.closure*.8;hand.children.forEach(child=>{if(child.userData.finger)child.rotation.x=contact.closure*.95})});eyes.forEach((eye,i)=>{eye.scale.y=Math.max(.09,1-expression.blink*.92);pupils[i].scale.y=eye.scale.y;pupils[i].position.x=(i===0?-.13:.13)+expression.gazeX*.025;pupils[i].position.y=.04+expression.gazeY*.03;brows[i].position.y=.145+expression.shock*.085-expression.focus*.025;brows[i].rotation.z=(i===0?-1:1)*(expression.shock*.36-expression.focus*.2)});head.rotation.x-=expression.shock*.18;legs[0].rotation.x+=secondary.leftLeg;legs[1].rotation.x+=secondary.rightLeg;arms[0].rotation.x+=secondary.leftArm;arms[1].rotation.x+=secondary.rightArm;torso.rotation.x+=secondary.lean;head.rotation.x+=secondary.lookUp;if(secondary.heading!==null&&k!=='run')actor.rotation.y=secondary.heading;if(beat!==previousBeat){if(!paused)foley(k,beat);previousBeat=beat}if(originalEvent&&beat!==previousOriginalBeat){const pitch=comedySound(originalEvent.id,beat);if(pitch&&!paused)cue(pitch);previousOriginalBeat=beat;}if(!originalEvent)playConsequences(k,seconds);else{carriedLog.visible=false;pole.visible=false;float.visible=false;coconut.visible=false;raft.visible=false;paintOriginalEvent(seconds);ui('desc',originalEvent.phases[beatForTime(seconds)]);}
 secondaryRigMotion(t,expression.shock);applyFootIK(sampleFootContacts(k,seconds));if(!originalEvent&&contact.closure>0)applyHandIK(k,seconds,contact.position);
 if(!paused&&t-lastAmbienceSent>=.1){lastAmbienceSent=t;emit({type:'ambience',time:t,dark});if(!dark&&t-bird>9){bird=t;cue(1200)}}
-if(t-lastProgressSent>=.1){lastProgressSent=t;emit({type:'progress',ratio:seconds/duration})}animateShot(dt);updateCamera();renderer.render(scene,camera)}
+if(t-lastProgressSent>=.1){lastProgressSent=t;emit({type:'progress',ratio:seconds/duration})}animateShot(dt);updateCamera();renderer.render(scene,camera);if(!firstFrameSent){firstFrameSent=true;emit({type:'frame-ready'})}}
 const scheduler=createFrameScheduler({request:raf,cancel,render:frame,onResume:()=>{clock.getDelta();lastRenderTime=0}});
 scheduler.start();return {handle,dispose(){scheduler.dispose();renderer.dispose()}};
 }
