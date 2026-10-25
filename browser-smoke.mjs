@@ -107,6 +107,15 @@ await page.locator('#pause').click();
 await page.waitForFunction(()=>!document.querySelector('#name')?.textContent?.startsWith('Preview'),null,{timeout:10000});
 const after=await page.evaluate(()=>localStorage.getItem('castaway-original-story-v1'));
 assert.equal(after,before,'Read-only preview must not write story progression');
+// Verify the tide is rendered at deterministic high/low-water story beats.
+await page.goto('http://127.0.0.1:4173/?storyPreview=pier-to-nowhere&storyTime=16',{waitUntil:'load'});
+await page.waitForFunction(()=>document.querySelector('#name')?.textContent?.includes('Preview'),null,{timeout:20000});
+await verifyWebGL(page,'pier at high tide');
+await page.waitForTimeout(180);
+await page.screenshot({path:'screenshots/pier-high-tide-desktop.png'});
+await page.evaluate(()=>window.__castawayPreviewSeek(27));
+await page.waitForTimeout(180);
+await page.screenshot({path:'screenshots/pier-low-tide-desktop.png'});
 // Exercise the same scene runtime without worker canvas transfer.
 await page.goto('http://127.0.0.1:4173/?renderThread=main',{waitUntil:'load'});
 await verifyWebGL(page,'forced-main-thread fallback');
