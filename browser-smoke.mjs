@@ -53,6 +53,27 @@ await page.waitForFunction(()=>document.querySelector('#pause')?.textContent==='
 await page.locator('#night').click();
 await page.waitForFunction(()=>document.querySelector('#night')?.textContent==='Day');
 await page.screenshot({path:'screenshots/desktop-1280x720.png',fullPage:true});
+// The field guide must be part of the deployed static bundle, not only the source tree.
+const guide=await browser.newPage({viewport:{width:1280,height:800}});
+guide.on('pageerror',e=>errors.push('manual: '+e.message));
+const guideResponse=await guide.goto('http://127.0.0.1:4173/manual.html',{waitUntil:'load'});
+assert.equal(guideResponse?.status(),200,'manual should be included in dist/');
+assert.match(await guide.locator('h1').innerText(),/Castaway\s+Island/);
+assert.equal(await guide.locator('article.entry').count(),5,'all five original field notes must appear');
+assert.equal(await guide.locator('.qa').count(),5,'all five FAQ answers must be present in the static manual');
+assert.equal(await guide.locator('a[href="./"]').count()>0,true,'manual needs a return-to-island link');
+await guide.screenshot({path:'screenshots/manual-desktop-1280x800.png',fullPage:true});
+await guide.setViewportSize({width:390,height:844});
+const guideWidth=await guide.evaluate(()=>({
+  scroll:document.documentElement.scrollWidth,
+  viewport:document.documentElement.clientWidth
+}));
+assert.ok(guideWidth.scroll<=guideWidth.viewport+2,'manual overflows portrait viewport: '+JSON.stringify(guideWidth));
+await guide.screenshot({path:'screenshots/manual-mobile-390x844.png',fullPage:true});
+await guide.emulateMedia({media:'print'});
+assert.equal(await guide.locator('.mast').evaluate(e=>getComputedStyle(e).display),'none','print should hide navigation');
+assert.equal(await guide.locator('.qa').first().isVisible(),true,'print must retain FAQ answers');
+await guide.close();
 const mobile=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:1,isMobile:true,hasTouch:true});
 mobile.on('pageerror',e=>errors.push('mobile: '+e.message));
 await mobile.route('**/castaway/assets/**',route=>route.continue({url:route.request().url().replace('/castaway/assets/','/assets/')}));
