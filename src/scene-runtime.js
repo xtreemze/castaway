@@ -2,12 +2,14 @@
 import * as T from 'three';import{createCrab}from'./crab-geometry.js';import{cameraShot,framingEase,WIDE_SHOT}from'./camera-framing.js';import{EVENTS}from'../story-catalog.mjs';import{crabBlocking}from'../crab-choreography.mjs';import{comedyPose,comedySound}from'../comedy-acting.mjs';import{newStoryState,chooseStoryEvent,completeStoryEvent,beatForTime}from'../story-director.mjs';import{samplePose,beatAt}from'../animation-director.mjs';import{positionAt,raftVisibility,plankCount}from'../scene-choreography.mjs';import{propPose,applyInventory}from'../prop-choreography.mjs';import{secondaryMotion}from'../secondary-motion.mjs';import{expressionAt}from'../character-expression.mjs';import{handContact}from'../hand-rig.mjs';import{groundContact}from'../ground-contact.mjs';
 import { chooseNextScene } from './narrative.js';
 import { createFrameScheduler } from './frame-scheduler.js';
-export function startScene({ canvas, emit, initialStoryState, initialNarrativeState, preview, width, height, pixelRatio = 1 }) {
+import { shouldFollowStoryCamera } from './motion-policy.js';
+export function startScene({ canvas, emit, initialStoryState, initialNarrativeState, preview, reducedMotion: initialReducedMotion = false, width, height, pixelRatio = 1 }) {
 const scene=new T.Scene();scene.background=new T.Color('#94cfdf');scene.fog=new T.Fog('#94cfdf',26,95);const camera=new T.PerspectiveCamera(40,width/height,.1,180);camera.position.set(12,9,17);
 const renderer=new T.WebGLRenderer({antialias:true,canvas});renderer.setPixelRatio(Math.min(pixelRatio,2));renderer.setSize(width,height,false);renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFSoftShadowMap;renderer.outputColorSpace=T.SRGBColorSpace;
 const target = new T.Vector3(0,1,0);
 let radius=Math.hypot(12,8,17),theta=Math.atan2(12,17),phi=Math.acos(8/radius);
 let displayedRadius=radius,displayedTheta=theta,displayedPhi=phi,automaticFraming=true;
+let reducedMotion=Boolean(initialReducedMotion);
 const lookAtShot=new T.Vector3();
 const pointers=new Map();
 const clamp=(v,min,max)=>Math.min(max,Math.max(min,v));
@@ -28,7 +30,8 @@ function snapShot(shot){
  updateCamera(true);
 }
 function animateShot(dt){
- if(!automaticFraming)return;
+ // Keep the camera stable when the user requests reduced motion; acting continues.
+ if(!shouldFollowStoryCamera({automaticFraming,reducedMotion}))return;
  const shot=cameraShot(originalEvent?.id,width/height),alpha=framingEase(dt);
  lookAtShot.set(...shot.focus);target.lerp(lookAtShot,alpha);
  const dx=shot.position[0]-shot.focus[0],dy=shot.position[1]-shot.focus[1],dz=shot.position[2]-shot.focus[2];
@@ -221,6 +224,7 @@ function handle(message){
    seaMat.color.set(dark?'#153f67':'#207fa7');ui('night',dark?'Day':'Night');
    emit({type:'ambience',time:total,dark});break;
   case 'visibility':visible=Boolean(message.visible);scheduler.setVisible(visible);break;
+  case 'motion-preference':reducedMotion=Boolean(message.reducedMotion);break;
  }
 }
 let lastProgressSent=-1,lastAmbienceSent=-1;
