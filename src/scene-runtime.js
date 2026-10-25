@@ -1,6 +1,7 @@
 
 import * as T from 'three';import{createCrab}from'./crab-geometry.js';import{cameraShot,framingEase,WIDE_SHOT}from'./camera-framing.js';import{EVENTS}from'../story-catalog.mjs';import{crabBlocking}from'../crab-choreography.mjs';import{comedyPose,comedySound}from'../comedy-acting.mjs';import{newStoryState,chooseStoryEvent,completeStoryEvent,beatForTime}from'../story-director.mjs';import{samplePose,beatAt}from'../animation-director.mjs';import{positionAt,raftVisibility,plankCount}from'../scene-choreography.mjs';import{propPose,applyInventory}from'../prop-choreography.mjs';import{secondaryMotion}from'../secondary-motion.mjs';import{expressionAt}from'../character-expression.mjs';import{handContact}from'../hand-rig.mjs';import{groundContact}from'../ground-contact.mjs';
 import { chooseNextScene } from './narrative.js';
+import { createFrameScheduler } from './frame-scheduler.js';
 export function startScene({ canvas, emit, initialStoryState, initialNarrativeState, preview, width, height, pixelRatio = 1 }) {
 const scene=new T.Scene();scene.background=new T.Color('#94cfdf');scene.fog=new T.Fog('#94cfdf',26,95);const camera=new T.PerspectiveCamera(40,width/height,.1,180);camera.position.set(12,9,17);
 const renderer=new T.WebGLRenderer({antialias:true,canvas});renderer.setPixelRatio(Math.min(pixelRatio,2));renderer.setSize(width,height,false);renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFSoftShadowMap;renderer.outputColorSpace=T.SRGBColorSpace;
@@ -219,15 +220,14 @@ function handle(message){
    sun.intensity=dark?.5:3.1;sun.color.set(dark?'#a6bce8':'#fff1c9');
    seaMat.color.set(dark?'#153f67':'#207fa7');ui('night',dark?'Day':'Night');
    emit({type:'ambience',time:total,dark});break;
-  case 'visibility':visible=message.visible;break;
+  case 'visibility':visible=Boolean(message.visible);scheduler.setVisible(visible);break;
  }
 }
 let lastProgressSent=-1,lastAmbienceSent=-1;
-const clock=new T.Clock();let bird=0,requestId,lastRenderTime=0;
+const clock=new T.Clock();let bird=0,lastRenderTime=0;
 const raf=typeof requestAnimationFrame==='function'?requestAnimationFrame:(callback)=>setTimeout(()=>callback(performance.now()),16);
 const cancel=typeof cancelAnimationFrame==='function'?cancelAnimationFrame:clearTimeout;
 function frame(timestamp=performance.now()){
-  requestId=raf(frame);
   if(!visible||timestamp-lastRenderTime<1000/60-1)return;
   lastRenderTime=timestamp;const dt=Math.min(clock.getDelta(),.05);if(!paused){total+=dt;seconds+=dt;if(seconds>=duration){if(originalEvent){finishOriginalEvent();seconds=0;event(chooseNext())}else{resolveEvent();seconds=0;if(!startOriginalEvent())event(chooseNext())}}}const t=total,k=originalEvent?'idle':stories[index][2],phase=seconds/duration,beat=beats.findIndex(b=>seconds>=b.start&&seconds<b.end),energy=beat===0?.25:beat===1?.5:beat===2?1:beat===3?1.4:.15,beatTime=seconds-(beats[Math.max(0,beat)]?.start||0);
 if(waveUniform)waveUniform.value=t;foam.forEach((o,i)=>{o.material.opacity=.19+.09*Math.sin(t*.8+i);o.scale.x=1.32+.02*Math.sin(t*.6+i)});crown.rotation.z=.05*Math.sin(t);const stage=positionAt(k,seconds),priorStage=positionAt(k,Math.max(0,seconds-.016)),secondary=secondaryMotion(k,seconds,stage,priorStage),contactGround=groundContact(k,seconds,stage,priorStage);if(contactGround.footprint>.45&&seconds-lastFootfall>.37){lastFootfall=seconds;const footprint=footprints[footprintHead++%footprints.length];footprint.position.set(stage[0]+(contactGround.foot?-.15:.15),-.016,stage[1]);footprint.material.opacity=.4;footprint.userData.born=total}footprints.forEach(o=>{o.material.opacity=Math.max(0,.4-(total-(o.userData.born??-100))* .014)});actor.position.set(stage[0],.1+.025*Math.sin(t*2)+secondary.lift-contactGround.sandCompression,stage[1]);actor.rotation.set(0,.11*Math.sin(t*.3),0);torso.rotation.set(0,0,.025*Math.sin(t*1.2));head.rotation.set(0,0,.06*Math.sin(t*.7));arms.forEach((a,i)=>{a.rotation.set(0,0,(i?1:-1)*(.08+.06*Math.sin(t*1.1)))});legs.forEach(l=>l.rotation.x=0);head.rotation.x=beat===0?-.18*smooth(beatTime/5):beat===3?.28:0;torso.rotation.x=beat===1?-.12*smooth(beatTime/7):beat===3?.24:beat===4?-.12*smooth(beatTime/5):0;
@@ -242,5 +242,6 @@ if(k==='depart'){raft.position.x=1.6+.5*Math.sin(phase*Math.PI);raft.position.y=
 if(k==='alarm'){arms[0].rotation.z=-1.8;arms[1].rotation.z=1.8;head.rotation.z=.18*Math.sin(t*4)*energy}stagedPose(k,seconds);const expression=expressionAt(k,seconds);const contact=handContact(k,seconds,[actor.position.x,actor.position.y,actor.position.z]);hands.forEach((hand,i)=>{hand.rotation.x=(i===contact.hand?-1:1)*contact.closure*.8;hand.children.forEach(child=>{if(child.userData.finger)child.rotation.x=contact.closure*.95})});eyes.forEach((eye,i)=>{eye.scale.y=Math.max(.09,1-expression.blink*.92);pupils[i].scale.y=eye.scale.y;pupils[i].position.x=(i===0?-.13:.13)+expression.gazeX*.025;pupils[i].position.y=.04+expression.gazeY*.03;brows[i].position.y=.145+expression.shock*.085-expression.focus*.025;brows[i].rotation.z=(i===0?-1:1)*(expression.shock*.36-expression.focus*.2)});head.rotation.x-=expression.shock*.18;legs[0].rotation.x+=secondary.leftLeg;legs[1].rotation.x+=secondary.rightLeg;arms[0].rotation.x+=secondary.leftArm;arms[1].rotation.x+=secondary.rightArm;torso.rotation.x+=secondary.lean;head.rotation.x+=secondary.lookUp;if(secondary.heading!==null&&k!=='run')actor.rotation.y=secondary.heading;if(beat!==previousBeat){if(!paused)foley(k,beat);previousBeat=beat}if(originalEvent&&beat!==previousOriginalBeat){const pitch=comedySound(originalEvent.id,beat);if(pitch&&!paused)cue(pitch);previousOriginalBeat=beat;}if(!originalEvent)playConsequences(k,seconds);else{carriedLog.visible=false;pole.visible=false;float.visible=false;coconut.visible=false;raft.visible=false;paintOriginalEvent(seconds);ui('desc',originalEvent.phases[beatForTime(seconds)]);}
 if(!paused&&t-lastAmbienceSent>=.1){lastAmbienceSent=t;emit({type:'ambience',time:t,dark});if(!dark&&t-bird>9){bird=t;cue(1200)}}
 if(t-lastProgressSent>=.1){lastProgressSent=t;emit({type:'progress',ratio:seconds/duration})}animateShot(dt);updateCamera();renderer.render(scene,camera)}
-frame();return {handle,dispose(){cancel(requestId);renderer.dispose()}};
+const scheduler=createFrameScheduler({request:raf,cancel,render:frame,onResume:()=>{clock.getDelta();lastRenderTime=0}});
+scheduler.start();return {handle,dispose(){scheduler.dispose();renderer.dispose()}};
 }
