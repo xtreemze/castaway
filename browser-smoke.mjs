@@ -45,6 +45,10 @@ await page.waitForSelector('canvas',{timeout:20000});
 await page.waitForTimeout(3500);
 assert.equal(await page.locator('canvas').count(),1);
 await verifyWebGL(page,'desktop');
+// Exercise live preference changes while the renderer is active in a worker.
+await page.emulateMedia({reducedMotion:'reduce'});
+await verifyWebGL(page,'desktop with reduced motion');
+await page.emulateMedia({reducedMotion:'no-preference'});
 assert.equal(await page.locator('#name').innerText()!=='',true);
 await page.locator('#next').click();
 assert.match(await page.locator('#name').innerText(),/Day/);
@@ -106,6 +110,9 @@ assert.equal(after,before,'Read-only preview must not write story progression');
 // Exercise the same scene runtime without worker canvas transfer.
 await page.goto('http://127.0.0.1:4173/?renderThread=main',{waitUntil:'load'});
 await verifyWebGL(page,'forced-main-thread fallback');
+await page.emulateMedia({reducedMotion:'reduce'});
+await verifyWebGL(page,'fallback with reduced motion');
+await page.emulateMedia({reducedMotion:'no-preference'});
 assert.equal(await page.locator('#name').innerText()!=='',true);
 assert.deepEqual(errors,[],errors.join('\n'));
 await browser.close();console.log('Browser smoke test passed');
