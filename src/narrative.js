@@ -23,3 +23,25 @@ export function chooseStory(stories, history, current, random = Math.random) {
   }
   return choice;
 }
+
+/**
+ * Deterministic, prerequisite-gated selection for legacy scenes. Uses only
+ * persisted narrative state; no render time, Math.random, or mutable RNG.
+ */
+export function chooseNextScene(stories, history, current) {
+  if (stories.length < 2) return 0;
+  const seen = history?.seen ?? {};
+  const lastKinds = Array.isArray(history?.lastKinds) ? history.lastKinds : [];
+  const raftProgress = Number.isFinite(history?.raftProgress) ? history.raftProgress : 0;
+  const episode = Number.isSafeInteger(history?.episode) && history.episode >= 0 ? history.episode : 0;
+  const rng = seededRandom(String(history?.seed ?? 0xCA57A) + ':' + episode);
+  let selected = null;
+  let best = -Infinity;
+  for (let i = 0; i < stories.length; i++) {
+    const kind = stories[i][2];
+    if (i === current || (i === 6 && raftProgress < 2) || (i === 9 && raftProgress < 3)) continue;
+    const score = rng() - (seen[i] || 0) * .14 - (lastKinds.includes(kind) ? .5 : 0);
+    if (score > best) { best = score; selected = i; }
+  }
+  return selected ?? current;
+}
