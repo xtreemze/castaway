@@ -57,6 +57,9 @@ await page.waitForFunction(()=>document.querySelector('#pause')?.textContent==='
 await page.locator('#night').click();
 await page.waitForFunction(()=>document.querySelector('#night')?.textContent==='Day');
 await page.screenshot({path:'screenshots/desktop-1280x720.png',fullPage:true});
+// Release the active WebGL worker before capturing the long static manual.
+// The same page is navigated back to the island for later story fixtures.
+await page.goto('about:blank',{waitUntil:'load'});
 // The field guide must be part of the deployed static bundle, not only the source tree.
 const guide=await browser.newPage({viewport:{width:1280,height:800}});
 guide.on('pageerror',e=>errors.push('manual: '+e.message));
