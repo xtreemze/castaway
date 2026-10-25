@@ -82,6 +82,7 @@ function fromScene(message){
       break;
     case 'cue':cue(message.freq);break;
     case 'ambience':ambience(message);break;
+    case 'frame-ready':document.documentElement.dataset.castawayFrame='ready';break;
     case 'ready':document.documentElement.dataset.castawayRenderer='worker';break;
     case 'fatal':recover(message.message);break;
   }

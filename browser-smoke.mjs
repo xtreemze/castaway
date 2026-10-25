@@ -119,6 +119,23 @@ await page.screenshot({path:'screenshots/pier-high-tide-desktop.png'});
 await page.evaluate(()=>window.__castawayPreviewSeek(27));
 await page.waitForTimeout(180);
 await page.screenshot({path:'screenshots/pier-low-tide-desktop.png'});
+// Sample meaningful original-prop contacts only after the render worker has painted.
+for(const [id,t,label] of [
+ ['portable-shade',9,'leaf-grasp'],
+ ['return-to-sender',12.5,'paper-cork-handoff'],
+ ['pier-to-nowhere',27,'pier-sign'],
+]){
+ await page.goto('http://127.0.0.1:4173/?storyPreview='+id+'&storyTime='+t,{waitUntil:'load'});
+ await page.waitForFunction(()=>document.documentElement.dataset.castawayFrame==='ready',null,{timeout:20000});
+ await page.screenshot({path:'screenshots/original-'+label+'-desktop.png'});
+}
+const propMobile=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:1,isMobile:true,hasTouch:true});
+propMobile.on('pageerror',e=>errors.push('prop mobile: '+e.message));
+await propMobile.route('**/castaway/assets/**',route=>route.continue({url:route.request().url().replace('/castaway/assets/','/assets/')}));
+await propMobile.goto('http://127.0.0.1:4173/?storyPreview=return-to-sender&storyTime=12.5',{waitUntil:'load'});
+await propMobile.waitForFunction(()=>document.documentElement.dataset.castawayFrame==='ready',null,{timeout:20000});
+await propMobile.screenshot({path:'screenshots/original-paper-cork-handoff-mobile.png'});
+await propMobile.close();
 // Exercise the same scene runtime without worker canvas transfer.
 await page.goto('http://127.0.0.1:4173/?renderThread=main',{waitUntil:'load'});
 await verifyWebGL(page,'forced-main-thread fallback');
