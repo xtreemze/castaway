@@ -11,7 +11,8 @@ export function positionAt(kind,time){
   // home instead of teleporting when the next 30-second vignette begins.
   const recovery=1-ease((t-25)/5);
   const blocking=approach*recovery;
-  let x=dest[0]*blocking;
+  // Avoid negative zero at neutral boundaries; exact station identity is part of replay.
+  let x=blocking===0?0:dest[0]*blocking;
   let z=.2+(dest[1]-.2)*blocking;
   if(kind==='run'){
     // Closed elliptical circuit: both ends return to the exact origin with
