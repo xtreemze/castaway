@@ -17,6 +17,9 @@ export function completeLegacyScene(world, sceneIndex, stories) {
   return completeEpisode(snapshot, 'legacy', String(sceneIndex), state => {
     const n = state.narrative;
     const kind = scene[2];
+    // Valid v2 envelopes may still contain invalid historic scalar values.
+    n.failures = Number.isSafeInteger(n.failures) && n.failures >= 0 ? n.failures : 0;
+    n.hope = Number.isFinite(n.hope) ? Math.max(0, Math.min(100, n.hope)) : 70;
     const previousVisits = n.seen[sceneIndex];
     n.seen[sceneIndex] = (Number.isSafeInteger(previousVisits) && previousVisits >= 0 ? previousVisits : 0) + 1;
     n.lastKinds = [...n.lastKinds, kind].slice(-3);
