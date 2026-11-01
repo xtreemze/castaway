@@ -31,4 +31,32 @@ describe('canonical narrative persistence',()=>{
   saveWorld(store,state);expect(loadWorld(store).current).toEqual(state.current);
   expect(normalizeWorld({current:{family:'legacy',id:'2',elapsed:900}}).current.elapsed).toBe(30);
  });
+ it('recovers both legacy saves when the v2 record is malformed or unsupported',()=>{
+  for(const corrupt of ['{bad json',JSON.stringify([]),JSON.stringify({version:99,narrative:{day:100}})]){
+   const store=memory();
+   store.setItem(STORY_KEY,corrupt);
+   store.setItem('castaway-story-v1',JSON.stringify({day:12,coconuts:3}));
+   store.setItem('castaway-original-story-v1',JSON.stringify({flags:['crab_met']}));
+   const loaded=loadWorld(store);
+   expect(loaded.narrative.day).toBe(12);
+   expect(loaded.narrative.coconuts).toBe(3);
+   expect(loaded.original.flags).toEqual(['crab_met']);
+  }
+ });
+ it('prefers a valid canonical snapshot over stale legacy keys',()=>{
+  const store=memory();
+  store.setItem(STORY_KEY,JSON.stringify(normalizeWorld({narrative:{day:20,coconuts:6}})));
+  store.setItem('castaway-story-v1',JSON.stringify({day:3,coconuts:1}));
+  expect(loadWorld(store).narrative).toMatchObject({day:20,coconuts:6});
+ });
+ it('does not mutate nested historical records when applying completion outcomes',()=>{
+  const prior=normalizeWorld({narrative:{seen:{5:2}},current:{family:'legacy',id:'5',elapsed:30}});
+  const next=completeEpisode(prior,'legacy','5',world=>{world.narrative.seen[5]=3;});
+  expect(prior.narrative.seen[5]).toBe(2);
+  expect(next.narrative.seen[5]).toBe(3);
+  expect(next.narrative.day).toBe(2);
+  const copy=normalizeWorld(prior);
+  copy.narrative.seen[5]=500;
+  expect(prior.narrative.seen[5]).toBe(2);
+ });
 });

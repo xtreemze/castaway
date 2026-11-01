@@ -4,7 +4,9 @@ import {advanceChapter} from './chapters.js';
 export const STORY_KEY = 'castaway-world-v2';
 export const defaultNarrative = () => ({day:1,hope:70,failures:0,coconuts:0,raftProgress:0,raftPeak:0,seen:{},lastKinds:[],lastEvent:0,seed:0xCA57A,episode:0});
 export const defaultOriginal = () => ({seed:0xC457A,played:[],counts:{},flags:[],lastMechanism:null,episode:0});
-const object = value => value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+const isRecord = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+const object = value => isRecord(value) ? value : {};
+const isCanonicalSnapshot = value => isRecord(value) && value.version === 2 && isRecord(value.narrative) && isRecord(value.original);
 const integer = (value,fallback,min=0) => Number.isSafeInteger(value)&&value>=min ? value : fallback;
 export function normalizeWorld(value, legacyNarrative, legacyOriginal) {
   const snapshot=object(value);
@@ -12,7 +14,8 @@ export function normalizeWorld(value, legacyNarrative, legacyOriginal) {
   const n={...defaultNarrative(),...object(snapshot.narrative ?? legacy)};
   n.day=integer(n.day,1,1);n.episode=integer(n.episode,0);n.seed=integer(n.seed,0xCA57A);
   n.raftProgress=integer(n.raftProgress,0);n.raftPeak=Math.max(n.raftProgress,integer(n.raftPeak,0));n.coconuts=integer(n.coconuts,0);
-  n.seen=object(n.seen);n.lastKinds=Array.isArray(n.lastKinds)?n.lastKinds.slice(-3):[];
+  // The completion callback must never mutate a previously persisted snapshot.
+  n.seen={...object(n.seen)};n.lastKinds=Array.isArray(n.lastKinds)?n.lastKinds.slice(-3):[];
   const o={...defaultOriginal(),...object(snapshot.original ?? original)};
   o.episode=integer(o.episode,0);o.seed=integer(o.seed,0xC457A);
   o.played=Array.isArray(o.played)?o.played.slice(-40):[];
@@ -30,7 +33,10 @@ export function normalizeWorld(value, legacyNarrative, legacyOriginal) {
 }
 export function loadWorld(storage) {
   const read=key=>{try{return JSON.parse(storage.getItem(key)||'null')}catch{return null}};
-  return normalizeWorld(read(STORY_KEY),read('castaway-story-v1'),read('castaway-original-story-v1'));
+  const snapshot=read(STORY_KEY);
+  // Malformed or unsupported v2 data must not hide a recoverable legacy save.
+  return normalizeWorld(isCanonicalSnapshot(snapshot)?snapshot:null,read('castaway-story-v1'),read('castaway-original-story-v1'));
+
 }
 export function saveWorld(storage,world) {
   const result=normalizeWorld(world);
