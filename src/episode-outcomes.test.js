@@ -39,6 +39,14 @@ describe('canonical episode outcome adapters', () => {
     expect(built.narrative.raftPeak).toBe(3);
   });
 
+  it('repairs invalid legacy scalar counters before applying a consequence', () => {
+    const broken = legacy(2, {failures: 'bad', hope: '70', seen: {2: '4'}});
+    const fixed = completeLegacyScene(broken, 2, stories);
+    expect(fixed.narrative.failures).toBe(1);
+    expect(fixed.narrative.hope).toBe(62);
+    expect(fixed.narrative.seen[2]).toBe(1);
+  });
+
   it('ignores missing or stale legacy identities and invalid scenes', () => {
     const prior = legacy(1);
     for (const index of [-1, 0, 999, 1.5]) {
