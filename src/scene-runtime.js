@@ -240,7 +240,7 @@ function event(n,resuming=false){
 }
 const restored=world.current;
 const resumedOriginal=!readOnly&&restored.family==='original'&&EVENTS.find(e=>e.id===restored.id);
-const resumedLegacy=!readOnly&&restored.family==='legacy'&&/^\\d+$/.test(restored.id??'')&&Number(restored.id)<stories.length;
+const resumedLegacy=!readOnly&&restored.family==='legacy'&&/^\d+$/.test(restored.id??'')&&Number(restored.id)<stories.length;
 if(resumedOriginal){
   event(0,true);
   originalEvent=resumedOriginal;seconds=restored.elapsed;
