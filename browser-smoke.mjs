@@ -193,6 +193,19 @@ for(const mode of ['worker','main']){
  assert.equal(reloaded.current.family,'original','original episode must resume after reload');
  assert.equal(reloaded.current.id,saved.current.id,'the same original episode must resume');
  assert.ok(reloaded.current.elapsed>=saved.current.elapsed-.5,'active elapsed time must not reset');
+ if(mode==='worker'){
+  // Force a real uncaught worker error after the checkpointed original scene
+  // has resumed. The shell must recover on a fresh main-thread canvas without
+  // reloading the document or awarding the scene twice.
+  const activeWorker=resume.workers()[0];
+  assert.ok(activeWorker,'the default renderer should create a Web Worker');
+  await activeWorker.evaluate(()=>setTimeout(()=>{throw new Error('intentional-worker-recovery-test')},20));
+  await resume.waitForFunction(()=>document.documentElement.dataset.castawayRenderer==='main',null,{timeout:20000});
+  const recovered=await resume.evaluate(()=>JSON.parse(localStorage.getItem('castaway-world-v2')));
+  assert.equal(recovered.current.family,'original','worker recovery must retain the original episode');
+  assert.equal(recovered.current.id,saved.current.id,'worker recovery must not switch the story');
+  assert.equal(recovered.narrative.day,7,'worker recovery must not award a day');
+ }
  await resume.locator('#next').click();
  await resume.waitForFunction(()=>JSON.parse(localStorage.getItem('castaway-world-v2')||'null')?.current?.family==='legacy',null,{timeout:10000});
  assert.equal(await resume.evaluate(()=>JSON.parse(localStorage.getItem('castaway-world-v2')).narrative.day),7,
