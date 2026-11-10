@@ -104,12 +104,20 @@ await page.goto('http://127.0.0.1:4173/?storyPreview=crab-handshake&storyTime=0'
 await page.waitForSelector('canvas');
 for(const t of [2,8,15,19.2,20,25,29])await snapshotCrabBeat(page,t,'desktop');
 // A preview must never award progression even when playback reaches the boundary.
-const before=await page.evaluate(()=>localStorage.getItem('castaway-original-story-v1'));
+const before=await page.evaluate(()=>[
+ localStorage.getItem('castaway-world-v2'),
+ localStorage.getItem('castaway-story-v1'),
+ localStorage.getItem('castaway-original-story-v1'),
+]);
 await page.evaluate(()=>window.__castawayPreviewSeek(29.99));
 await page.locator('#pause').click();
 await page.waitForFunction(()=>!document.querySelector('#name')?.textContent?.startsWith('Preview'),null,{timeout:10000});
-const after=await page.evaluate(()=>localStorage.getItem('castaway-original-story-v1'));
-assert.equal(after,before,'Read-only preview must not write story progression');
+const after=await page.evaluate(()=>[
+ localStorage.getItem('castaway-world-v2'),
+ localStorage.getItem('castaway-story-v1'),
+ localStorage.getItem('castaway-original-story-v1'),
+]);
+assert.deepEqual(after,before,'Read-only preview must not write any story save');
 // Verify the tide is rendered at deterministic high/low-water story beats.
 await page.goto('http://127.0.0.1:4173/?storyPreview=pier-to-nowhere&storyTime=16',{waitUntil:'load'});
 await page.waitForFunction(()=>document.querySelector('#name')?.textContent?.includes('Preview'),null,{timeout:20000});
@@ -143,5 +151,63 @@ await page.emulateMedia({reducedMotion:'reduce'});
 await verifyWebGL(page,'fallback with reduced motion');
 await page.emulateMedia({reducedMotion:'no-preference'});
 assert.equal(await page.locator('#name').innerText()!=='',true);
+// A canonical snapshot must survive worker and explicit main-thread fallback reloads.
+// Use isolated browser contexts so legacy migration and a saved active episode are real.
+for(const mode of ['worker','main']){
+ const context=await browser.newContext({viewport:{width:390,height:844}});
+ const resume=await context.newPage();
+ resume.on('pageerror',error=>errors.push(mode+' resume: '+error.message));
+ await resume.route('**/castaway/assets/**',route=>route.continue({url:route.request().url().replace('/castaway/assets/','/assets/')}));
+ const suffix=mode==='main'?'?renderThread=main':'';
+ const url='http://127.0.0.1:4173/'+suffix;
+ await resume.goto(url,{waitUntil:'load'});
+ // Seed only v1 data; the next boot must migrate without modifying those keys.
+ await resume.evaluate(()=>{
+  localStorage.clear();
+  localStorage.setItem('castaway-story-v1',JSON.stringify({day:7,coconuts:3,raftProgress:2,seen:{2:2}}));
+  localStorage.setItem('castaway-original-story-v1',JSON.stringify({seed:321,played:['crab-handshake'],flags:['crab_met'],lastMechanism:'status-inversion',episode:1}));
+ });
+ await resume.reload({waitUntil:'load'});
+ await resume.waitForFunction(()=>document.documentElement.dataset.castawayFrame==='ready',null,{timeout:20000});
+ assert.equal(await resume.evaluate(()=>document.documentElement.dataset.castawayRenderer),mode);
+ await resume.waitForFunction(()=>JSON.parse(localStorage.getItem('castaway-world-v2')||'null')?.current?.family==='legacy',null,{timeout:10000});
+ const migrated=await resume.evaluate(()=>JSON.parse(localStorage.getItem('castaway-world-v2')));
+ assert.equal(migrated.version,2);
+ assert.equal(migrated.narrative.day,7);
+ assert.equal(migrated.narrative.coconuts,3);
+ assert.equal(migrated.narrative.raftProgress,2);
+ assert.ok(migrated.original.flags.includes('crab_met'));
+ assert.equal(migrated.current.id,'0');
+ assert.equal(await resume.evaluate(()=>JSON.parse(localStorage.getItem('castaway-story-v1')).day),7,'v1 migration must be read-only');
+ await resume.locator('#next').click();
+ await resume.waitForFunction(()=>JSON.parse(localStorage.getItem('castaway-world-v2')||'null')?.current?.family==='original',null,{timeout:10000});
+ await resume.locator('#pause').click();
+ await resume.waitForFunction(()=>document.querySelector('#pause')?.textContent==='Resume',null,{timeout:10000});
+ const saved=await resume.evaluate(()=>JSON.parse(localStorage.getItem('castaway-world-v2')));
+ assert.equal(saved.narrative.day,7,'skipping an incomplete legacy episode cannot award a day');
+ assert.ok(saved.current.id,'original episode should have a stable ID');
+ await resume.reload({waitUntil:'load'});
+ await resume.waitForFunction(()=>document.documentElement.dataset.castawayFrame==='ready',null,{timeout:20000});
+ assert.match(await resume.locator('#name').innerText(),/Day 7/);
+ const reloaded=await resume.evaluate(()=>JSON.parse(localStorage.getItem('castaway-world-v2')));
+ assert.equal(reloaded.current.family,'original','original episode must resume after reload');
+ assert.equal(reloaded.current.id,saved.current.id,'the same original episode must resume');
+ assert.ok(reloaded.current.elapsed>=saved.current.elapsed-.5,'active elapsed time must not reset');
+ await resume.locator('#next').click();
+ await resume.waitForFunction(()=>JSON.parse(localStorage.getItem('castaway-world-v2')||'null')?.current?.family==='legacy',null,{timeout:10000});
+ assert.equal(await resume.evaluate(()=>JSON.parse(localStorage.getItem('castaway-world-v2')).narrative.day),7,
+  'skipping an incomplete original episode cannot award a day');
+ // Even after resuming a preview past its last beat, neither save family may change.
+ const stable=await resume.evaluate(()=>localStorage.getItem('castaway-world-v2'));
+ const previewUrl='http://127.0.0.1:4173/?'+(mode==='main'?'renderThread=main&':'')+
+  'storyPreview=crab-handshake&storyTime=29.9';
+ await resume.goto(previewUrl,{waitUntil:'load'});
+ await resume.waitForFunction(()=>document.documentElement.dataset.castawayFrame==='ready',null,{timeout:20000});
+ await resume.locator('#pause').click();
+ await resume.waitForFunction(()=>!document.querySelector('#name')?.textContent?.startsWith('Preview'),null,{timeout:10000});
+ assert.equal(await resume.evaluate(()=>localStorage.getItem('castaway-world-v2')),stable,
+  mode+' preview must never write progression');
+ await context.close();
+}
 assert.deepEqual(errors,[],errors.join('\n'));
 await browser.close();console.log('Browser smoke test passed');
