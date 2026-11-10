@@ -6,7 +6,8 @@ export function seededRandom(seed){
 }
 export function newStoryState(seed=0xC457A){return {seed,played:[],flags:[],lastMechanism:null,episode:0};}
 export function chooseStoryEvent(state,catalog=EVENTS){
-  const available=catalog.filter(e=>e.requires.every(flag=>state.flags.includes(flag)));
+  const available=catalog.filter(e=>e.requires.every(flag=>state.flags.includes(flag)) &&
+    !(e.kind==='milestone' && e.effects.every(flag=>state.flags.includes(flag))));
   if(!available.length)return null;
   const rng=seededRandom((state.seed ^ Math.imul(state.episode+1,2654435761))>>>0);
   const ranked=available.map(e=>{
