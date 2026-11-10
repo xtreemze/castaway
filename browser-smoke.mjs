@@ -210,16 +210,27 @@ for(const mode of ['worker','main']){
  await resume.waitForFunction(()=>JSON.parse(localStorage.getItem('castaway-world-v2')||'null')?.current?.family==='legacy',null,{timeout:10000});
  assert.equal(await resume.evaluate(()=>JSON.parse(localStorage.getItem('castaway-world-v2')).narrative.day),7,
   'skipping an incomplete original episode cannot award a day');
- // Even after resuming a preview past its last beat, neither save family may change.
- const stable=await resume.evaluate(()=>localStorage.getItem('castaway-world-v2'));
+ // The previous live episode may deliver one last elapsed-time checkpoint
+ // during navigation. That is legitimate. Compare committed story fields across
+ // the navigation, then demand byte-for-byte immutability while preview runs.
+ const stable=await resume.evaluate(()=>JSON.parse(localStorage.getItem('castaway-world-v2')));
  const previewUrl='http://127.0.0.1:4173/?'+(mode==='main'?'renderThread=main&':'')+
   'storyPreview=crab-handshake&storyTime=29.9';
  await resume.goto(previewUrl,{waitUntil:'load'});
  await resume.waitForFunction(()=>document.documentElement.dataset.castawayFrame==='ready',null,{timeout:20000});
+ const previewStartRaw=await resume.evaluate(()=>localStorage.getItem('castaway-world-v2'));
+ const previewStart=JSON.parse(previewStartRaw);
+ assert.deepEqual({
+   chapter:previewStart.chapter,narrative:previewStart.narrative,original:previewStart.original,
+   family:previewStart.current.family,id:previewStart.current.id,
+ },{
+   chapter:stable.chapter,narrative:stable.narrative,original:stable.original,
+   family:stable.current.family,id:stable.current.id,
+ },mode+' preview startup must not modify committed story or active identity');
  await resume.locator('#pause').click();
  await resume.waitForFunction(()=>!document.querySelector('#name')?.textContent?.startsWith('Preview'),null,{timeout:10000});
- assert.equal(await resume.evaluate(()=>localStorage.getItem('castaway-world-v2')),stable,
-  mode+' preview must never write progression');
+ assert.equal(await resume.evaluate(()=>localStorage.getItem('castaway-world-v2')),previewStartRaw,
+  mode+' preview playback must never write progression');
  await context.close();
 }
 assert.deepEqual(errors,[],errors.join('\n'));
