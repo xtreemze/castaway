@@ -20,3 +20,14 @@ test('selector returns catalog event and records history',()=>{
  assert.equal(next.episode,1);assert.deepEqual(next.played,[event.id]);
 });
 test('30 second comic beat divisions',()=>assert.deepEqual([0,6,12,19,23,28,30].map(beatForTime),[0,1,2,3,4,5,5]));
+
+test('one-off milestones are ineligible once their effects are committed',()=>{
+ const event=EVENTS.find(e=>e.id==='pier-to-nowhere');
+ for(let seed=1;seed<=100;seed++){
+  const completed={...newStoryState(seed),flags:[...event.effects]};
+  assert.notEqual(chooseStoryEvent(completed)?.id,event.id);
+ }
+ const eligible=chooseStoryEvent(newStoryState(42),[event]);
+ assert.equal(eligible?.id,event.id);
+ assert.equal(chooseStoryEvent({...newStoryState(42),flags:[...event.effects]},[event]),null);
+});

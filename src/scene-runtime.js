@@ -1,6 +1,8 @@
 
-import * as T from 'three';import{createCrab}from'./crab-geometry.js';import{cameraShot,framingEase,WIDE_SHOT}from'./camera-framing.js';import{EVENTS}from'../story-catalog.mjs';import{crabBlocking}from'../crab-choreography.mjs';import{comedyPose,comedySound}from'../comedy-acting.mjs';import{newStoryState,chooseStoryEvent,completeStoryEvent,beatForTime}from'../story-director.mjs';import{samplePose,beatAt}from'../animation-director.mjs';import{positionAt,raftVisibility,plankCount}from'../scene-choreography.mjs';import{propPose,applyInventory}from'../prop-choreography.mjs';import{secondaryMotion}from'../secondary-motion.mjs';import{expressionAt}from'../character-expression.mjs';import{handContact}from'../hand-rig.mjs';import{groundContact}from'../ground-contact.mjs';
+import * as T from 'three';import{createCrab}from'./crab-geometry.js';import{cameraShot,framingEase,WIDE_SHOT}from'./camera-framing.js';import{EVENTS}from'../story-catalog.mjs';import{crabBlocking}from'../crab-choreography.mjs';import{comedyPose,comedySound}from'../comedy-acting.mjs';import{chooseStoryEvent,beatForTime}from'../story-director.mjs';import{samplePose,beatAt}from'../animation-director.mjs';import{positionAt,raftVisibility,plankCount}from'../scene-choreography.mjs';import{propPose}from'../prop-choreography.mjs';import{secondaryMotion}from'../secondary-motion.mjs';import{expressionAt}from'../character-expression.mjs';import{handContact}from'../hand-rig.mjs';import{groundContact}from'../ground-contact.mjs';
 import { chooseNextScene } from './narrative.js';
+import {normalizeWorld,interruptEpisode} from './world-state.js';
+import {completeLegacyScene,completeOriginalScene} from './episode-outcomes.js';
 import { createFrameScheduler } from './frame-scheduler.js';
 import { shouldFollowStoryCamera } from './motion-policy.js';
 import {createWorld,updateShorelineFoam} from '../world-geometry.mjs';
@@ -11,7 +13,7 @@ import {sampleFootContacts} from '../foot-contact.mjs';
 import {sampleOriginalPropStage} from '../original-prop-stage.mjs';
 import {sampleOriginalHandContact} from '../original-hand-contact.mjs';
 import {createSupplementaryOriginalMeshes} from '../original-prop-meshes.mjs';
-export function startScene({ canvas, emit, initialStoryState, initialNarrativeState, preview, reducedMotion: initialReducedMotion = false, width, height, pixelRatio = 1 }) {
+export function startScene({ canvas, emit, initialWorldState, preview, reducedMotion: initialReducedMotion = false, width, height, pixelRatio = 1 }) {
 const scene=new T.Scene();scene.background=new T.Color('#94cfdf');scene.fog=new T.Fog('#94cfdf',26,95);const camera=new T.PerspectiveCamera(40,width/height,.1,180);camera.position.set(12,9,17);
 const renderer=new T.WebGLRenderer({antialias:true,canvas});renderer.setPixelRatio(Math.min(pixelRatio,2));renderer.setSize(width,height,false);renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFSoftShadowMap;renderer.outputColorSpace=T.SRGBColorSpace;
 const target = new T.Vector3(0,1,0);
@@ -97,12 +99,15 @@ seaMat.customProgramCacheKey=()=> 'castaway-ocean-wave-v1';
 const {actor,torso,head,eyes,pupils,brows,arms,hands,legs,elbows,knees,ankles,applyHandIK,applyFootIK,secondaryRigMotion}=createCastawayRig({T,scene,obj,ball,rod,m,skin,hair,shirt,shorts,white});
 const footprints=Array.from({length:12},()=>{const o=obj(new T.CircleGeometry(.11,12),new T.MeshBasicMaterial({color:'#c39c68',transparent:true,opacity:0,depthWrite:false}),0,-.017,0);o.rotation.x=-Math.PI/2;return o});let footprintHead=0,lastFootfall=-1;const prop=new T.Group();scene.add(prop);const supplies=new T.Group();scene.add(supplies);const storedCoconuts=Array.from({length:8},(_,i)=>{const a=i*2.399,r=.23*Math.sqrt(i);return ball(.16,wood,-1.05+Math.cos(a)*r,.02+.16*(i%2),.55+Math.sin(a)*r,supplies)});const coconut=ball(.22,wood,.7,.23,.65,prop);const pole=rod([.9,.15,1.1],[1.4,2,1.1],.035,wood,prop);const float=ball(.08,white,1.7,-.45,1.1,prop);const splash=new T.Group();scene.add(splash);splash.visible=false;for(let i=0;i<7;i++){const drop=ball(.045,m('#b9ecf5'),0,0,0,splash);drop.userData.angle=i*Math.PI*2/7}
 const carriedLog=obj(new T.CylinderGeometry(.11,.11,.85,7),bark,0,0,0);carriedLog.rotation.z=Math.PI/2;carriedLog.visible=false;const raft=new T.Group();raft.position.set(1.6,.05,1.1);scene.add(raft);for(let i=0;i<4;i++){const log=obj(new T.CylinderGeometry(.16,.16,1.7,7),bark,i*.33-.5,0,0,raft);log.rotation.x=Math.PI/2}
-// New narrative scenes share the existing character rig and are isolated from legacy choreography.
-let storyState;
-try{
-  const value=initialStoryState;
-  storyState=value&&Number.isInteger(value.seed)&&Array.isArray(value.flags)&&Array.isArray(value.played)&&Number.isInteger(value.episode)?value:newStoryState();
-}catch{storyState=newStoryState()}
+// The world snapshot owns both narrative families; meshes only project its state.
+let world=normalizeWorld(initialWorldState);
+let narrative=world.narrative,storyState=world.original;
+const readOnly=Boolean(preview?.id);
+function applyWorld(next){
+  world=normalizeWorld(next);
+  narrative=world.narrative;
+  storyState=world.original;
+}
 let originalEvent=null,previousOriginalBeat=-1,previewOnly=false;
 const comedyProps=new T.Group();comedyProps.visible=false;scene.add(comedyProps);
 const shade=obj(new T.ConeGeometry(.78,.1,5),leaf,0,2.45,0,comedyProps);
@@ -176,6 +181,8 @@ function startOriginalEvent(){
   if(!selected)return false;
   originalEvent=selected;previewOnly=false;
   seconds=0;previousBeat=-1;previousOriginalBeat=-1;
+  world.current={family:'original',id:selected.id,elapsed:0};
+  checkpoint();
   ui('name','Day '+narrative.day+' · '+selected.title);
   ui('desc',selected.phases[0]);
   ui('sub',selected.accessibilitySummary);
@@ -183,21 +190,25 @@ function startOriginalEvent(){
 }
 function finishOriginalEvent(){
   if(!originalEvent)return;
-  if(!previewOnly){
-    storyState=completeStoryEvent(storyState,originalEvent);
-    emit({type:'persist',key:'castaway-original-story-v1',value:storyState});
+  if(!previewOnly&&!readOnly){
+    world.current.elapsed=duration;
+    applyWorld(completeOriginalScene(world,originalEvent.id));
+    checkpoint();
   }
   originalEvent=null;previewOnly=false;comedyProps.visible=false;
   updateShorelineFoam(foam,waterHeightAt(null,0),total);
 }
 const stories=[['A quiet day','He surveys his kingdom of sand.','idle','A kingdom of one.'],['Gone fishing','Patience is an admirable quality.','fish','The fish have other plans.'],['Coconut lunch','Lunch is more complicated than expected.','coconut','Lunch fights back.'],['Morning exercise','One lap is a considerable expedition.','run','Around the world in eight seconds.'],['A distant ship','He waves with unreasonable confidence.','wave','Perhaps they saw him.'],['A magnificent invention','The castaway works on a glorious plan.','build','Progress is relative.'],['The raft','Four logs and a limitless imagination.','raft','Nothing can possibly go wrong.'],['Rain dance','The weather does not cooperate.','dance','The clouds seem unimpressed.'],['Afternoon nap','There is time to dream.','sleep','He dreams of dry socks.'],['Departure','The greatest journey begins.','depart','It ends slightly sooner.'],['Something in the water','Perhaps swimming is a bad idea.','alarm','There are other options.'],['Still here','The tide brings another day.','idle','There is always tomorrow.']];
-const narrative={day:1,hope:70,failures:0,coconuts:0,raftProgress:0,seen:{},lastKinds:[],lastEvent:0,seed:0xCA57A,episode:0};
-try{const saved=initialNarrativeState;if(saved&&Number.isInteger(saved.day)&&saved.day>0)Object.assign(narrative,saved)}catch{}
-narrative.seed=Number.isSafeInteger(narrative.seed)&&narrative.seed>=0?narrative.seed:0xCA57A;
-narrative.episode=Number.isSafeInteger(narrative.episode)&&narrative.episode>=0?narrative.episode:Math.max(0,narrative.day-1);
+
 const beats=[{start:0,end:5,label:'Anticipation'},{start:5,end:12,label:'Preparation'},{start:12,end:20,label:'Action'},{start:20,end:25,label:'Comic payoff'},{start:25,end:30,label:'Recovery'}];
 const smooth=x=>{x=Math.max(0,Math.min(1,x));return x*x*(3-2*x)};
-let index=0,seconds=0,total=0,previousBeat=-1,paused=false,dark=false,visible=true;const duration=30;
+let index=0,seconds=0,total=0,previousBeat=-1,paused=false,dark=false,visible=true,lastCheckpoint=-Infinity;const duration=30;
+function checkpoint(){
+  if(readOnly)return;
+  if(world.current.family)world.current.elapsed=Math.max(0,Math.min(duration,seconds));
+  emit({type:'persist',world:normalizeWorld(world)});
+  lastCheckpoint=total;
+}
 const uiCache=new Map();
 const ui=(id,value)=>{if(uiCache.get(id)===value)return;uiCache.set(id,value);emit({type:'ui',id,value})};
 function cue(freq=440){emit({type:'cue',freq})}
@@ -205,10 +216,39 @@ function stagedPose(kind,time){const pose=samplePose(kind,time);torso.rotation.x
 function foley(kind,beat){const tones={coconut:[230,170],fish:[540,350],wave:[670,280],build:[220,310],raft:[260,210],depart:[420,115],alarm:[850,570]};const f=tones[kind]||[360,220];if(beat===2)cue(f[0]);if(beat===3){cue(f[1]);if(kind==='depart'||kind==='coconut')cue(f[1]*.73)}}
 function playConsequences(k,t){const carrying=propPose(k,t,actor.position.x,actor.position.z);carriedLog.visible=(k==='build'||k==='raft')&&carrying.mode==='carried';if(carriedLog.visible){const hold=handContact(k,t,[actor.position.x,actor.position.y,actor.position.z]);carriedLog.position.set(...hold.position)}storedCoconuts.forEach((o,i)=>o.visible=i<Math.min(8,narrative.coconuts)+(k==='coconut'&&t>25?1:0));const payoff=smooth((t-19)/3),recover=smooth((t-25)/5);splash.visible=k==='depart'&&t>=19&&t<25;if(splash.visible){splash.position.set(2.3,-.36,1.1);for(const drop of splash.children){const a=drop.userData.angle,r=.1+payoff*.8;drop.position.set(Math.cos(a)*r,.15+Math.sin(payoff*Math.PI)*.32,Math.sin(a)*r)}}if(k==='coconut'){const p=propPose(k,t,actor.position.x,actor.position.z);coconut.visible=p.mode!=='stored';if(p.mode==='carried'){const hold=handContact(k,t,[actor.position.x,actor.position.y,actor.position.z]);coconut.position.set(...hold.position)}else coconut.position.set(p.x,p.y,p.z);coconut.rotation.z=p.mode==='bounce'?(t-19)*5:0;head.rotation.z+=p.mode==='bounce'?.3:0}if(k==='raft'||k==='depart'){raft.scale.setScalar(k==='depart'?1:.7+plankCount(narrative.raftProgress)*.075);raft.children.forEach((log,i)=>{log.visible=i<Math.max(1,plankCount(narrative.raftProgress)+(k==='raft'?1:0))});raft.rotation.z=k==='depart'&&t>19?Math.sin((t-19)*3)*.25*(1-recover):0}if(k==='wave'&&t>20&&t<25)arms[1].rotation.z=-.2;if(k==='fish'&&t>20&&t<25){float.position.x=1.7+.6*Math.sin((t-20)*2);head.rotation.z=.18}if(k==='build'&&t>20&&t<25)torso.rotation.x=.6*(1-recover)}
 function chooseNext(){return chooseNextScene(stories,narrative,index)}
-function resolveEvent(){const k=stories[index][2];narrative.seen[index]=(narrative.seen[index]||0)+1;narrative.lastKinds=[...narrative.lastKinds,k].slice(-3);narrative.lastEvent=index;narrative.day++;narrative.episode++;
-Object.assign(narrative,applyInventory(narrative,k));if(k==='depart'){narrative.failures++;narrative.hope=Math.max(35,narrative.hope-8);narrative.raftProgress=0}if(k==='wave'||k==='raft')narrative.hope=Math.min(100,narrative.hope+4);
-emit({type:'persist',key:'castaway-story-v1',value:narrative});}
-function event(n){if(originalEvent){originalEvent=null;comedyProps.visible=false;updateShorelineFoam(foam,waterHeightAt(null,0),total);}lastFootfall=-1;if(typeof index==='number'&&total>0&&seconds>=duration-0.05)resolveEvent();previousBeat=-1;index=(n+stories.length)%stories.length;seconds=0;const [name,desc,kind,sub]=stories[index];storedCoconuts.forEach((o,i)=>o.visible=i<Math.min(8,narrative.coconuts));ui('name','Day '+narrative.day+' · '+name);ui('desc',desc);ui('sub',sub);coconut.visible=kind==='coconut';pole.visible=float.visible=kind==='fish';raft.visible=raftVisibility(narrative.raftProgress,kind);cue(460+index*25)}event(0);
+function resolveEvent(){
+  if(readOnly)return;
+  world.current.elapsed=duration;
+  applyWorld(completeLegacyScene(world,index,stories));
+  checkpoint();
+}
+function event(n,resuming=false){
+  if(originalEvent){originalEvent=null;comedyProps.visible=false;updateShorelineFoam(foam,waterHeightAt(null,0),total)}
+  lastFootfall=-1;previousBeat=-1;
+  index=(n+stories.length)%stories.length;
+  if(!resuming){
+    seconds=0;
+    world.current={family:'legacy',id:String(index),elapsed:0};
+    checkpoint();
+  }
+  const [name,desc,kind,sub]=stories[index];
+  storedCoconuts.forEach((o,i)=>o.visible=i<Math.min(8,narrative.coconuts));
+  ui('name','Day '+narrative.day+' · '+name);
+  ui('desc',desc);ui('sub',sub);
+  coconut.visible=kind==='coconut';pole.visible=float.visible=kind==='fish';
+  raft.visible=raftVisibility(narrative.raftProgress,kind);cue(460+index*25);
+}
+const restored=world.current;
+const resumedOriginal=!readOnly&&restored.family==='original'&&EVENTS.find(e=>e.id===restored.id);
+const resumedLegacy=!readOnly&&restored.family==='legacy'&&/^\d+$/.test(restored.id??'')&&Number(restored.id)<stories.length;
+if(resumedOriginal){
+  event(0,true);
+  originalEvent=resumedOriginal;seconds=restored.elapsed;
+  ui('name','Day '+narrative.day+' · '+originalEvent.title);
+  ui('desc',originalEvent.phases[beatForTime(seconds)]);ui('sub',originalEvent.accessibilitySummary);
+}else if(resumedLegacy){
+  event(Number(restored.id),true);seconds=restored.elapsed;
+}else event(0);
 // Read-only QA previews are resolved in the worker, not from window.location.
 const previewScene=EVENTS.find(item=>item.id===preview?.id);
 if(previewScene){
@@ -221,8 +261,9 @@ if(previewScene){
   ui('sub',previewScene.accessibilitySummary);
 }
 function next(){
- if(originalEvent){originalEvent=null;previewOnly=false;comedyProps.visible=false;updateShorelineFoam(foam,waterHeightAt(null,0),total);event(index+1)}
- else if(!startOriginalEvent())event(index+1);
+  if(!readOnly){applyWorld(interruptEpisode(world));checkpoint()}
+  if(originalEvent){originalEvent=null;previewOnly=false;comedyProps.visible=false;updateShorelineFoam(foam,waterHeightAt(null,0),total);event(index+1)}
+  else if(!startOriginalEvent())event(index+1);
 }
 function handle(message){
  switch(message.type){
@@ -233,7 +274,8 @@ function handle(message){
    camera.aspect=width/height;camera.updateProjectionMatrix();
    renderer.setPixelRatio(Math.min(message.pixelRatio||1,2));renderer.setSize(width,height,false);break;
   case 'next':next();break;
-  case 'pause':paused=!paused;ui('pause',paused?'Resume':'Pause');break;
+  case 'pause':paused=!paused;ui('pause',paused?'Resume':'Pause');checkpoint();break;
+  case 'checkpoint':checkpoint();break;
   case 'reset':automaticFraming=false;snapShot(fittedWideShot());break;
   case 'preview-seek':
    if(!previewOnly||!originalEvent)break;
@@ -246,7 +288,7 @@ function handle(message){
    sun.intensity=dark?.5:3.1;sun.color.set(dark?'#a6bce8':'#fff1c9');
    seaMat.color.set(dark?'#153f67':'#207fa7');ui('night',dark?'Day':'Night');
    emit({type:'ambience',time:total,dark});break;
-  case 'visibility':visible=Boolean(message.visible);scheduler.setVisible(visible);break;
+  case 'visibility':visible=Boolean(message.visible);if(!visible)checkpoint();scheduler.setVisible(visible);break;
   case 'motion-preference':reducedMotion=Boolean(message.reducedMotion);break;
  }
 }
@@ -256,7 +298,7 @@ const raf=typeof requestAnimationFrame==='function'?requestAnimationFrame:(callb
 const cancel=typeof cancelAnimationFrame==='function'?cancelAnimationFrame:clearTimeout;
 function frame(timestamp=performance.now()){
   if(!visible||timestamp-lastRenderTime<1000/60-1)return;
-  lastRenderTime=timestamp;const dt=Math.min(clock.getDelta(),.05);if(!paused){total+=dt;seconds+=dt;if(seconds>=duration){if(originalEvent){finishOriginalEvent();seconds=0;event(chooseNext())}else{resolveEvent();seconds=0;if(!startOriginalEvent())event(chooseNext())}}}const t=total,k=originalEvent?'idle':stories[index][2],phase=seconds/duration,beat=beats.findIndex(b=>seconds>=b.start&&seconds<b.end),energy=beat===0?.25:beat===1?.5:beat===2?1:beat===3?1.4:.15,beatTime=seconds-(beats[Math.max(0,beat)]?.start||0);
+  lastRenderTime=timestamp;const dt=Math.min(clock.getDelta(),.05);if(!paused){total+=dt;seconds+=dt;if(seconds>=duration){seconds=duration;if(originalEvent){finishOriginalEvent();event(chooseNext())}else{resolveEvent();if(!startOriginalEvent())event(chooseNext())}}if(total-lastCheckpoint>=2)checkpoint()}const t=total,k=originalEvent?'idle':stories[index][2],phase=seconds/duration,beat=beats.findIndex(b=>seconds>=b.start&&seconds<b.end),energy=beat===0?.25:beat===1?.5:beat===2?1:beat===3?1.4:.15,beatTime=seconds-(beats[Math.max(0,beat)]?.start||0);
 const tideY=waterHeightAt(originalEvent?.id,seconds);sea.position.y=tideY;if(waveUniform)waveUniform.value=t;updateShorelineFoam(foam,tideY,t);crown.rotation.z=.05*Math.sin(t);const stage=positionAt(k,seconds),priorStage=positionAt(k,Math.max(0,seconds-.016)),secondary=secondaryMotion(k,seconds,stage,priorStage),contactGround=groundContact(k,seconds,stage,priorStage);if(contactGround.footprint>.45&&seconds-lastFootfall>.37){lastFootfall=seconds;const footprint=footprints[footprintHead++%footprints.length];{const markX=stage[0]+(contactGround.foot?-.15:.15),markZ=stage[1];footprint.position.set(markX,heightAt(markX,markZ)+.011,markZ)}footprint.material.opacity=.4;footprint.userData.born=total}footprints.forEach(o=>{o.material.opacity=Math.max(0,.4-(total-(o.userData.born??-100))* .014)});actor.position.set(stage[0],heightAt(stage[0],stage[1])-.03+.025*Math.sin(t*2)+secondary.lift-contactGround.sandCompression,stage[1]);actor.rotation.set(0,.11*Math.sin(t*.3),0);torso.rotation.set(0,0,.025*Math.sin(t*1.2));head.rotation.set(0,0,.06*Math.sin(t*.7));arms.forEach((a,i)=>{a.rotation.set(0,0,(i?1:-1)*(.08+.06*Math.sin(t*1.1)))});legs.forEach(l=>l.rotation.set(0,0,0));knees.forEach(j=>j.rotation.set(0,0,0));ankles.forEach(j=>j.rotation.set(0,0,0));elbows.forEach(j=>j.rotation.set(0,0,0));head.rotation.x=beat===0?-.18*smooth(beatTime/5):beat===3?.28:0;torso.rotation.x=beat===1?-.12*smooth(beatTime/7):beat===3?.24:beat===4?-.12*smooth(beatTime/5):0;
 if(k==='fish'){actor.rotation.y=-.5;arms[1].rotation.x=-.9*energy;float.position.y=-.43+.05*Math.sin(t*2)}
 if(k==='coconut'){arms[1].rotation.x=-1+Math.sin(t*2)*.7*energy;coconut.position.y=.23+Math.max(0,Math.sin(t*2))*.16}
