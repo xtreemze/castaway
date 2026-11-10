@@ -1,12 +1,14 @@
+import {loadWorld,normalizeWorld,saveWorld} from './world-state.js';
 // The main thread owns DOM, persistence and user-activated audio.
 // Rendering, animation, story direction and the scene clock normally run in a
 // dedicated OffscreenCanvas worker. Older browsers use a main-thread fallback.
 const $=id=>document.getElementById(id);
-const saveKeys=new Set(['castaway-story-v1','castaway-original-story-v1']);
 const uiKeys=new Set(['name','desc','sub','pause','night']);
-const read=key=>{try{return JSON.parse(localStorage.getItem(key)||'null')}catch{return null}};
 const storyPreview=new URLSearchParams(location.search);
 const preview={id:storyPreview.get('storyPreview'),time:storyPreview.get('storyTime')};
+// One v2 snapshot is the only write authority; v1 keys remain migration inputs.
+let latestWorld=loadWorld(localStorage);
+if(!preview.id)saveWorld(localStorage,latestWorld);
 
 let audioContext,master,noiseFilter,noiseGain,audioBusy=false;
 function cue(freq=440){
@@ -78,7 +80,10 @@ function fromScene(message){
     case 'ui':if(uiKeys.has(message.id))$(message.id).textContent=String(message.value);break;
     case 'progress':$('bar').style.width=(Math.max(0,Math.min(1,message.ratio))*100)+'%';break;
     case 'persist':
-      if(saveKeys.has(message.key))try{localStorage.setItem(message.key,JSON.stringify(message.value))}catch{}
+      if(!preview.id && message.world){
+        latestWorld=normalizeWorld(message.world);
+        saveWorld(localStorage,latestWorld);
+      }
       break;
     case 'cue':cue(message.freq);break;
     case 'ambience':ambience(message);break;
@@ -123,8 +128,7 @@ function createCanvas(){
 }
 createCanvas();
 function sceneArgs(){
-  return {canvas:surface,...size(),initialStoryState:read('castaway-original-story-v1'),
-    initialNarrativeState:read('castaway-story-v1'),preview,reducedMotion:motionQuery.matches};
+  return {canvas:surface,...size(),initialWorldState:normalizeWorld(latestWorld),preview,reducedMotion:motionQuery.matches};
 }
 function recover(reason){
   if(recovering||runtime)return;
@@ -172,7 +176,10 @@ addEventListener('keydown',event=>{
   else if(event.code==='ArrowRight'&&!event.repeat)send({type:'next'});
 });
 addEventListener('resize',()=>send({type:'resize',...size()}));
-document.addEventListener('visibilitychange',()=>send({type:'visibility',visible:!document.hidden}));
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden)send({type:'checkpoint'});
+  send({type:'visibility',visible:!document.hidden});
+});
 motionQuery.addEventListener('change',()=>send({type:'motion-preference',reducedMotion:motionQuery.matches}));
 start();
 // Restricted to storyboard URLs: QA controls the worker clock without changing story state.
